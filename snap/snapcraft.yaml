@@ -57,8 +57,8 @@ parts:
       rustup default stable
       npm ci
       npm run build
-      cargo build --release --features custom-protocol -p light-scrap-vidz
-      install -Dm755 target/release/light-scrap-vidz \
+      cargo build --release --features custom-protocol --manifest-path src-tauri/Cargo.toml
+      install -Dm755 src-tauri/target/release/light-scrap-vidz \
         "$CRAFT_PART_INSTALL/usr/bin/light-scrap-vidz"
       curl -L "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp" \
         -o "$CRAFT_PART_INSTALL/usr/bin/yt-dlp"
