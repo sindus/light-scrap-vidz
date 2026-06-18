@@ -79,3 +79,16 @@ export interface HistoryEntry {
   downloaded_at: number;
   quality: Quality;
 }
+
+export interface QueueItem {
+  id: string;
+  url: string;
+  outputDir: string;
+  quality: Quality;
+  audioOnly: boolean;
+  playlistEnd: number | null;
+  cookiesBrowser: CookiesBrowser;
+  status: 'pending' | 'downloading' | 'done' | 'error';
+  error?: string;
+  progress?: number;
+}

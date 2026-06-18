@@ -58,6 +58,7 @@ pub struct DownloadCommand {
     pub output_dir: PathBuf,
     pub quality: Quality,
     pub cookies_browser: Option<String>,
+    pub audio_only: bool,
 }
 
 impl DownloadCommand {
@@ -66,11 +67,12 @@ impl DownloadCommand {
         if let Some(browser) = &self.cookies_browser {
             cmd.args(["--cookies-from-browser", browser]);
         }
+        if self.audio_only {
+            cmd.args(["-x", "--audio-format", "mp3", "--audio-quality", "0"]);
+        } else {
+            cmd.args(["-f", self.quality.format_spec(), "--merge-output-format", "mp4"]);
+        }
         cmd.args([
-            "-f",
-            self.quality.format_spec(),
-            "--merge-output-format",
-            "mp4",
             "--progress",
             "--newline",
             "-P",
@@ -121,6 +123,7 @@ pub struct PlaylistDownloadCommand {
     pub quality: Quality,
     pub playlist_end: Option<u32>,
     pub cookies_browser: Option<String>,
+    pub audio_only: bool,
 }
 
 impl PlaylistDownloadCommand {
@@ -129,11 +132,12 @@ impl PlaylistDownloadCommand {
         if let Some(browser) = &self.cookies_browser {
             cmd.args(["--cookies-from-browser", browser]);
         }
+        if self.audio_only {
+            cmd.args(["-x", "--audio-format", "mp3", "--audio-quality", "0"]);
+        } else {
+            cmd.args(["-f", self.quality.format_spec(), "--merge-output-format", "mp4"]);
+        }
         cmd.args([
-            "-f",
-            self.quality.format_spec(),
-            "--merge-output-format",
-            "mp4",
             "--yes-playlist",
             "--progress",
             "--newline",
@@ -187,6 +191,7 @@ mod tests {
             output_dir: PathBuf::from("/tmp/downloads"),
             quality: Quality::P1080,
             cookies_browser: None,
+            audio_only: false,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -206,6 +211,7 @@ mod tests {
             output_dir: PathBuf::from("/tmp"),
             quality: Quality::Best,
             cookies_browser: None,
+            audio_only: false,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -238,6 +244,7 @@ mod tests {
             quality: Quality::Best,
             playlist_end: Some(10),
             cookies_browser: None,
+            audio_only: false,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -257,6 +264,7 @@ mod tests {
             quality: Quality::Best,
             playlist_end: None,
             cookies_browser: None,
+            audio_only: false,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -272,6 +280,7 @@ mod tests {
             output_dir: PathBuf::from("/tmp"),
             quality: Quality::Best,
             cookies_browser: Some("firefox".to_string()),
+            audio_only: false,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -288,9 +297,27 @@ mod tests {
             output_dir: PathBuf::from("/tmp"),
             quality: Quality::Best,
             cookies_browser: None,
+            audio_only: false,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
         assert!(!args.contains(&"--cookies-from-browser".to_string()));
+    }
+
+    #[test]
+    fn test_audio_only_uses_extract_audio() {
+        let cmd = DownloadCommand {
+            binary: PathBuf::from("/usr/bin/yt-dlp"),
+            url: "https://www.youtube.com/watch?v=test".to_string(),
+            output_dir: PathBuf::from("/tmp"),
+            quality: Quality::Best,
+            cookies_browser: None,
+            audio_only: true,
+        };
+        let built = cmd.build();
+        let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(args.contains(&"-x".to_string()));
+        assert!(args.contains(&"mp3".to_string()));
+        assert!(!args.contains(&"--merge-output-format".to_string()));
     }
 }

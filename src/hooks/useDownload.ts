@@ -1,7 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { v4 as uuidv4 } from 'uuid';
 import { startDownload, cancelDownload } from '@/lib/tauri-commands';
+import { parseYtdlpError } from '@/lib/error-parser';
 import type {
   CookiesBrowser,
   DownloadStatus,
@@ -22,6 +24,7 @@ interface DownloadContext {
   quality: Quality;
   playlistEnd: number | null;
   cookiesBrowser: CookiesBrowser;
+  audioOnly: boolean;
 }
 
 interface UseDownloadReturn {
@@ -37,9 +40,26 @@ interface UseDownloadReturn {
     playlistInfo: PlaylistInfo | null,
     playlistEnd: number | null,
     cookiesBrowser: CookiesBrowser,
+    audioOnly: boolean,
   ) => Promise<void>;
   cancel: () => Promise<void>;
   reset: () => void;
+}
+
+async function sendDesktopNotification(filepath: string) {
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      const permission = await requestPermission();
+      granted = permission === 'granted';
+    }
+    if (granted) {
+      const filename = filepath.split('/').at(-1) ?? 'file';
+      sendNotification({ title: 'Download complete', body: filename });
+    }
+  } catch {
+    // notifications not critical
+  }
 }
 
 export function useDownload(): UseDownloadReturn {
@@ -69,11 +89,20 @@ export function useDownload(): UseDownloadReturn {
       playlistInfo: PlaylistInfo | null,
       playlistEnd: number | null,
       cookiesBrowser: CookiesBrowser,
+      audioOnly: boolean,
     ) => {
       cleanup();
       const id = uuidv4();
       downloadIdRef.current = id;
-      currentContextRef.current = { url, info, playlistInfo, quality, playlistEnd, cookiesBrowser };
+      currentContextRef.current = {
+        url,
+        info,
+        playlistInfo,
+        quality,
+        playlistEnd,
+        cookiesBrowser,
+        audioOnly,
+      };
       setStatus('downloading');
       setProgress(null);
       setError(null);
@@ -90,6 +119,7 @@ export function useDownload(): UseDownloadReturn {
           setStatus('complete');
           setCompletedPath(event.payload.filepath);
           cleanup();
+          void sendDesktopNotification(event.payload.filepath);
 
           if (currentContextRef.current) {
             const ctx = currentContextRef.current;
@@ -129,7 +159,7 @@ export function useDownload(): UseDownloadReturn {
         (event) => {
           if (event.payload.download_id === id) {
             setStatus('error');
-            setError(event.payload.message);
+            setError(parseYtdlpError(event.payload.message));
             cleanup();
           }
         },
@@ -138,10 +168,10 @@ export function useDownload(): UseDownloadReturn {
       unlistenRefs.current = [unlistenProgress, unlistenComplete, unlistenError];
 
       try {
-        await startDownload(url, outputDir, quality, id, playlistEnd, cookiesBrowser);
+        await startDownload(url, outputDir, quality, id, playlistEnd, cookiesBrowser, audioOnly);
       } catch (err) {
         setStatus('error');
-        setError(err instanceof Error ? err.message : String(err));
+        setError(parseYtdlpError(err instanceof Error ? err.message : String(err)));
         cleanup();
       }
     },

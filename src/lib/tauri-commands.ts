@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { openPath } from '@tauri-apps/plugin-opener';
 import type { CookiesBrowser, PlaylistInfo, VideoInfo } from '@/types';
 
 export const fetchVideoInfo = (url: string, cookiesBrowser?: CookiesBrowser): Promise<VideoInfo> =>
@@ -17,6 +18,7 @@ export const startDownload = (
   downloadId: string,
   playlistEnd?: number | null,
   cookiesBrowser?: CookiesBrowser,
+  audioOnly?: boolean,
 ): Promise<void> =>
   invoke('start_download', {
     url,
@@ -25,9 +27,17 @@ export const startDownload = (
     downloadId,
     playlistEnd: playlistEnd ?? null,
     cookiesBrowser: cookiesBrowser ?? null,
+    audioOnly: audioOnly ?? false,
   });
 
 export const cancelDownload = (downloadId: string): Promise<void> =>
   invoke('cancel_download', { downloadId });
 
 export const openFolder = (path: string): Promise<void> => invoke('open_folder', { path });
+
+export const openFile = (path: string): Promise<void> => openPath(path);
+
+export const updateYtDlp = (): Promise<string> => invoke('update_ytdlp');
+
+export const detectInstalledBrowsers = (): Promise<string[]> =>
+  invoke('detect_installed_browsers');

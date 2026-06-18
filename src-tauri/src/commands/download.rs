@@ -45,6 +45,7 @@ pub async fn start_download(
     download_id: String,
     playlist_end: Option<u32>,
     cookies_browser: Option<String>,
+    audio_only: bool,
 ) -> Result<(), String> {
     let binary = YtDlpBinary::find()?;
     let q = Quality::from_str(&quality);
@@ -59,6 +60,7 @@ pub async fn start_download(
                 output_dir: PathBuf::from(&output_dir),
                 quality: q,
                 cookies_browser,
+                audio_only,
             };
             tokio::process::Command::from(cmd.build())
                 .stdout(Stdio::piped())
@@ -76,6 +78,7 @@ pub async fn start_download(
                 quality: q,
                 playlist_end: end,
                 cookies_browser,
+                audio_only,
             };
             tokio::process::Command::from(cmd.build())
                 .stdout(Stdio::piped())
