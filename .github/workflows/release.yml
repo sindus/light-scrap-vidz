@@ -69,3 +69,25 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
             src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
+
+  publish-snap:
+    name: Publish Snap
+    needs: [build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: tag
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Update version in snapcraft.yaml
+        run: sed -i "s/^version: .*/version: '${{ steps.tag.outputs.version }}'/" snap/snapcraft.yaml
+
+      - uses: snapcore/action-build@v1
+        id: build
+
+      - name: Publish snap to Snap Store
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
+        run: /snap/bin/snapcraft upload "${{ steps.build.outputs.snap }}" --release stable
