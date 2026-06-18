@@ -6,20 +6,35 @@ import type {
   DownloadStatus,
   DownloadProgress,
   DownloadComplete,
-  DownloadError,
   HistoryEntry,
   Quality,
   VideoInfo,
+  PlaylistInfo,
 } from '@/types';
 import { getPlatform } from '@/lib/url-validator';
 import { useHistory } from './useHistory';
+
+interface DownloadContext {
+  url: string;
+  info: VideoInfo | null;
+  playlistInfo: PlaylistInfo | null;
+  quality: Quality;
+  playlistEnd: number | null;
+}
 
 interface UseDownloadReturn {
   status: DownloadStatus;
   progress: DownloadProgress | null;
   completedPath: string | null;
   error: string | null;
-  download: (url: string, outputDir: string, quality: Quality, info: VideoInfo) => Promise<void>;
+  download: (
+    url: string,
+    outputDir: string,
+    quality: Quality,
+    info: VideoInfo | null,
+    playlistInfo: PlaylistInfo | null,
+    playlistEnd: number | null,
+  ) => Promise<void>;
   cancel: () => Promise<void>;
   reset: () => void;
 }
@@ -33,7 +48,7 @@ export function useDownload(): UseDownloadReturn {
 
   const downloadIdRef = useRef<string | null>(null);
   const unlistenRefs = useRef<UnlistenFn[]>([]);
-  const currentInfoRef = useRef<{ url: string; info: VideoInfo; quality: Quality } | null>(null);
+  const currentContextRef = useRef<DownloadContext | null>(null);
 
   const cleanup = useCallback(() => {
     unlistenRefs.current.forEach((fn) => fn());
@@ -43,11 +58,18 @@ export function useDownload(): UseDownloadReturn {
   useEffect(() => () => cleanup(), [cleanup]);
 
   const download = useCallback(
-    async (url: string, outputDir: string, quality: Quality, info: VideoInfo) => {
+    async (
+      url: string,
+      outputDir: string,
+      quality: Quality,
+      info: VideoInfo | null,
+      playlistInfo: PlaylistInfo | null,
+      playlistEnd: number | null,
+    ) => {
       cleanup();
       const id = uuidv4();
       downloadIdRef.current = id;
-      currentInfoRef.current = { url, info, quality };
+      currentContextRef.current = { url, info, playlistInfo, quality, playlistEnd };
       setStatus('downloading');
       setProgress(null);
       setError(null);
@@ -65,34 +87,54 @@ export function useDownload(): UseDownloadReturn {
           setCompletedPath(event.payload.filepath);
           cleanup();
 
-          if (currentInfoRef.current) {
-            const entry: HistoryEntry = {
-              id,
-              url: currentInfoRef.current.url,
-              title: currentInfoRef.current.info.title,
-              thumbnail: currentInfoRef.current.info.thumbnail,
-              platform: getPlatform(currentInfoRef.current.url),
-              filepath: event.payload.filepath,
-              downloaded_at: Date.now(),
-              quality: currentInfoRef.current.quality,
-            };
-            addEntry(entry);
+          if (currentContextRef.current) {
+            const ctx = currentContextRef.current;
+            const platform = getPlatform(ctx.url);
+
+            if (ctx.playlistInfo) {
+              const entry: HistoryEntry = {
+                id,
+                url: ctx.url,
+                title: ctx.playlistInfo.title || 'Playlist',
+                thumbnail: '',
+                platform,
+                filepath: event.payload.filepath,
+                downloaded_at: Date.now(),
+                quality: ctx.quality,
+              };
+              addEntry(entry);
+            } else if (ctx.info) {
+              const entry: HistoryEntry = {
+                id,
+                url: ctx.url,
+                title: ctx.info.title,
+                thumbnail: ctx.info.thumbnail,
+                platform,
+                filepath: event.payload.filepath,
+                downloaded_at: Date.now(),
+                quality: ctx.quality,
+              };
+              addEntry(entry);
+            }
           }
         }
       });
 
-      const unlistenError = await listen<DownloadError>('download://error', (event) => {
-        if (event.payload.download_id === id) {
-          setStatus('error');
-          setError(event.payload.message);
-          cleanup();
-        }
-      });
+      const unlistenError = await listen<{ download_id: string; message: string }>(
+        'download://error',
+        (event) => {
+          if (event.payload.download_id === id) {
+            setStatus('error');
+            setError(event.payload.message);
+            cleanup();
+          }
+        },
+      );
 
       unlistenRefs.current = [unlistenProgress, unlistenComplete, unlistenError];
 
       try {
-        await startDownload(url, outputDir, quality, id);
+        await startDownload(url, outputDir, quality, id, playlistEnd);
       } catch (err) {
         setStatus('error');
         setError(err instanceof Error ? err.message : String(err));
@@ -120,7 +162,7 @@ export function useDownload(): UseDownloadReturn {
     setCompletedPath(null);
     setError(null);
     downloadIdRef.current = null;
-    currentInfoRef.current = null;
+    currentContextRef.current = null;
     cleanup();
   }, [cleanup]);
 

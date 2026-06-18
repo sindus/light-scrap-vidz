@@ -10,9 +10,9 @@ use tokio::process::Child;
 use tokio::sync::Mutex;
 
 use crate::ytdlp::{
-    builder::{DownloadCommand, Quality},
+    builder::{DownloadCommand, PlaylistDownloadCommand, Quality},
     finder::YtDlpBinary,
-    parser::{parse_destination_line, parse_progress_line},
+    parser::{parse_destination_line, parse_playlist_item_line, parse_progress_line},
 };
 
 pub type DownloadRegistry = Arc<Mutex<HashMap<String, Child>>>;
@@ -24,6 +24,8 @@ pub struct ProgressPayload {
     pub speed: String,
     pub eta: String,
     pub filename: String,
+    pub current_item: Option<u32>,
+    pub total_items: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,23 +42,45 @@ pub async fn start_download(
     output_dir: String,
     quality: String,
     download_id: String,
+    playlist_end: Option<u32>,
 ) -> Result<(), String> {
     let binary = YtDlpBinary::find()?;
     let q = Quality::from_str(&quality);
+    let binary_path = binary.path().to_path_buf();
+    let output_dir_clone = output_dir.clone();
 
-    let cmd = DownloadCommand {
-        binary: binary.path().to_path_buf(),
-        url,
-        output_dir: PathBuf::from(&output_dir),
-        quality: q,
+    let mut process = match playlist_end {
+        None => {
+            let cmd = DownloadCommand {
+                binary: binary_path,
+                url,
+                output_dir: PathBuf::from(&output_dir),
+                quality: q,
+            };
+            tokio::process::Command::from(cmd.build())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .kill_on_drop(true)
+                .spawn()
+                .map_err(|e| format!("Failed to spawn yt-dlp: {e}"))?
+        }
+        Some(n) => {
+            let end = if n == 0 { None } else { Some(n) };
+            let cmd = PlaylistDownloadCommand {
+                binary: binary_path,
+                url,
+                output_dir: PathBuf::from(&output_dir),
+                quality: q,
+                playlist_end: end,
+            };
+            tokio::process::Command::from(cmd.build())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .kill_on_drop(true)
+                .spawn()
+                .map_err(|e| format!("Failed to spawn yt-dlp: {e}"))?
+        }
     };
-
-    let mut process = tokio::process::Command::from(cmd.build())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn yt-dlp: {e}"))?;
 
     let stdout = process.stdout.take().unwrap();
     let stderr = process.stderr.take().unwrap();
@@ -69,14 +93,21 @@ pub async fn start_download(
     let id = download_id.clone();
     let app_handle = app.clone();
     let registry = state.inner().clone();
+    let is_playlist = playlist_end.is_some();
 
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
         let mut last_filename = String::new();
+        let mut current_item: Option<u32> = None;
+        let mut total_items: Option<u32> = None;
 
         while let Ok(Some(line)) = reader.next_line().await {
             if let Some(dest) = parse_destination_line(&line) {
                 last_filename = dest;
+            }
+            if let Some(pi) = parse_playlist_item_line(&line) {
+                current_item = Some(pi.current_item);
+                total_items = Some(pi.total_items);
             }
             if let Some(p) = parse_progress_line(&line) {
                 let _ = app_handle.emit(
@@ -91,6 +122,8 @@ pub async fn start_download(
                             .next_back()
                             .unwrap_or("")
                             .to_string(),
+                        current_item,
+                        total_items,
                     },
                 );
             }
@@ -103,7 +136,6 @@ pub async fn start_download(
             stderr_last = line;
         }
 
-        // Wait for process exit and check if not cancelled
         let was_cancelled = {
             let mut reg = registry.lock().await;
             if let Some(child) = reg.remove(&id) {
@@ -115,7 +147,9 @@ pub async fn start_download(
         };
 
         if !was_cancelled {
-            let filepath = if last_filename.is_empty() {
+            let filepath = if is_playlist {
+                output_dir_clone.clone()
+            } else if last_filename.is_empty() {
                 stderr_last.to_string()
             } else {
                 last_filename.clone()

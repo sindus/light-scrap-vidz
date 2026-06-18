@@ -2,48 +2,92 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UrlInput } from '@/components/UrlInput';
 import { VideoPreview } from '@/components/VideoPreview';
+import { PlaylistPreview } from '@/components/PlaylistPreview';
 import { FormatSelector } from '@/components/FormatSelector';
+import { PlaylistEndSelector } from '@/components/PlaylistEndSelector';
 import { FolderPicker } from '@/components/FolderPicker';
 import { DownloadButton } from '@/components/DownloadButton';
 import { ProgressCard } from '@/components/ProgressCard';
 import { HistoryList } from '@/components/HistoryList';
 import { Separator } from '@/components/ui/separator';
 import { useVideoInfo } from '@/hooks/useVideoInfo';
+import { usePlaylistInfo } from '@/hooks/usePlaylistInfo';
 import { useDownload } from '@/hooks/useDownload';
 import { useHistory } from '@/hooks/useHistory';
-import type { Quality } from '@/types';
+import { isPlaylistUrl } from '@/lib/url-validator';
+import type { Quality, UrlKind } from '@/types';
 
 export default function App() {
   const [url, setUrl] = useState('');
   const [quality, setQuality] = useState<Quality>('best');
   const [outputDir, setOutputDir] = useState('');
+  const [urlKind, setUrlKind] = useState<UrlKind>('single');
+  const [playlistEnd, setPlaylistEnd] = useState<number>(10);
 
-  const { info, status: infoStatus, error: infoError, fetchInfo, reset: resetInfo } = useVideoInfo();
+  const {
+    info,
+    status: infoStatus,
+    error: infoError,
+    fetchInfo,
+    reset: resetInfo,
+  } = useVideoInfo();
+
+  const {
+    info: plInfo,
+    status: plStatus,
+    error: plError,
+    fetchInfo: fetchPlInfo,
+    reset: resetPlInfo,
+  } = usePlaylistInfo();
+
   const { status, progress, error: dlError, download, cancel, reset: resetDownload } = useDownload();
   const { entries, clearHistory } = useHistory();
 
-  const isBusy = infoStatus === 'loading' || status === 'downloading';
-  const isActive = status === 'downloading' || status === 'complete' || status === 'error' || status === 'cancelled';
+  const activeInfoStatus = urlKind === 'single' ? infoStatus : plStatus;
+  const activeError = urlKind === 'single' ? infoError : plError;
+  const isBusy = activeInfoStatus === 'loading' || status === 'downloading';
+  const isActive =
+    status === 'downloading' ||
+    status === 'complete' ||
+    status === 'error' ||
+    status === 'cancelled';
+  const showContent =
+    (urlKind === 'single' && !!info) || (urlKind === 'playlist' && !!plInfo);
 
   const handleFetchInfo = useCallback(
     async (submittedUrl: string) => {
       setUrl(submittedUrl);
       resetDownload();
-      await fetchInfo(submittedUrl);
+      resetInfo();
+      resetPlInfo();
+
+      if (isPlaylistUrl(submittedUrl)) {
+        setUrlKind('playlist');
+        await fetchPlInfo(submittedUrl);
+      } else {
+        setUrlKind('single');
+        await fetchInfo(submittedUrl);
+      }
     },
-    [fetchInfo, resetDownload],
+    [fetchInfo, fetchPlInfo, resetDownload, resetInfo, resetPlInfo],
   );
 
   const handleDownload = useCallback(async () => {
-    if (!info || !outputDir) return;
-    await download(url, outputDir, quality, info);
-  }, [info, outputDir, url, quality, download]);
+    if (!outputDir) return;
+    if (urlKind === 'playlist' && plInfo) {
+      await download(url, outputDir, quality, null, plInfo, playlistEnd);
+    } else if (info) {
+      await download(url, outputDir, quality, info, null, null);
+    }
+  }, [info, plInfo, outputDir, url, quality, urlKind, playlistEnd, download]);
 
   const handleReset = useCallback(() => {
     setUrl('');
+    setUrlKind('single');
     resetInfo();
+    resetPlInfo();
     resetDownload();
-  }, [resetInfo, resetDownload]);
+  }, [resetInfo, resetPlInfo, resetDownload]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden select-none">
@@ -60,32 +104,32 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden flex gap-0">
+      <div className="flex-1 overflow-hidden flex">
         {/* Main panel */}
         <main className="flex-1 overflow-y-auto px-6 pb-6 space-y-4">
           {/* URL Input */}
           <div className="glass p-4">
             <UrlInput
               onSubmit={handleFetchInfo}
-              isLoading={infoStatus === 'loading'}
+              isLoading={activeInfoStatus === 'loading'}
               disabled={isBusy}
             />
-
-            {infoStatus === 'error' && (
-              <p className="mt-3 text-xs text-red-400">{infoError}</p>
+            {activeInfoStatus === 'error' && (
+              <p className="mt-3 text-xs text-red-400">{activeError}</p>
             )}
           </div>
 
-          {/* Video preview + options */}
+          {/* Preview + options */}
           <AnimatePresence>
-            {info && (
+            {showContent && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 className="space-y-3"
               >
-                <VideoPreview info={info} url={url} />
+                {urlKind === 'single' && info && <VideoPreview info={info} url={url} />}
+                {urlKind === 'playlist' && plInfo && <PlaylistPreview info={plInfo} url={url} />}
 
                 <div className="glass p-4 space-y-3">
                   <FormatSelector
@@ -93,6 +137,18 @@ export default function App() {
                     onChange={setQuality}
                     disabled={isBusy || isActive}
                   />
+
+                  {urlKind === 'playlist' && (
+                    <>
+                      <Separator />
+                      <PlaylistEndSelector
+                        value={playlistEnd}
+                        onChange={setPlaylistEnd}
+                        disabled={isBusy || isActive}
+                      />
+                    </>
+                  )}
+
                   <Separator />
                   <FolderPicker
                     value={outputDir}

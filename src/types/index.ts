@@ -11,6 +11,8 @@ export type DownloadStatus =
   | 'error'
   | 'cancelled';
 
+export type UrlKind = 'single' | 'playlist';
+
 export interface VideoFormat {
   format_id: string;
   ext: string;
@@ -31,12 +33,28 @@ export interface VideoInfo {
   formats: VideoFormat[];
 }
 
+export interface PlaylistEntry {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface PlaylistInfo {
+  kind: string;
+  title: string;
+  uploader: string;
+  playlist_count: number | null;
+  entries: PlaylistEntry[];
+}
+
 export interface DownloadProgress {
   download_id: string;
   percent: number;
   speed: string;
   eta: string;
   filename: string;
+  current_item: number | null;
+  total_items: number | null;
 }
 
 export interface DownloadComplete {

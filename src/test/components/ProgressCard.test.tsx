@@ -9,6 +9,18 @@ const mockProgress: DownloadProgress = {
   speed: '1.23MiB/s',
   eta: '00:09',
   filename: 'my_video.mp4',
+  current_item: null,
+  total_items: null,
+};
+
+const mockPlaylistProgress: DownloadProgress = {
+  download_id: 'test-id',
+  percent: 47.3,
+  speed: '1.23MiB/s',
+  eta: '00:09',
+  filename: '003 - Some Video.mp4',
+  current_item: 3,
+  total_items: 10,
 };
 
 describe('ProgressCard', () => {
@@ -47,5 +59,15 @@ describe('ProgressCard', () => {
   it('shows cancelled message', () => {
     render(<ProgressCard status="cancelled" progress={null} error={null} />);
     expect(screen.getByText(/cancelled/i)).toBeInTheDocument();
+  });
+
+  it('shows "Video X / N" during playlist download', () => {
+    render(<ProgressCard status="downloading" progress={mockPlaylistProgress} error={null} />);
+    expect(screen.getByText('Video 3 / 10')).toBeInTheDocument();
+  });
+
+  it('does not show video counter for single-video download', () => {
+    render(<ProgressCard status="downloading" progress={mockProgress} error={null} />);
+    expect(screen.queryByText(/video \d+ \/ \d+/i)).not.toBeInTheDocument();
   });
 });

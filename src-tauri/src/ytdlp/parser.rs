@@ -11,6 +11,22 @@ static PROGRESS_RE: LazyLock<Regex> = LazyLock::new(|| {
 static DESTINATION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[download\] Destination: (.+)$").unwrap());
 
+static PLAYLIST_ITEM_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\[download\] Downloading item (\d+) of (\d+)").unwrap());
+
+#[derive(Debug, PartialEq)]
+pub struct PlaylistItemLine {
+    pub current_item: u32,
+    pub total_items: u32,
+}
+
+pub fn parse_playlist_item_line(line: &str) -> Option<PlaylistItemLine> {
+    let caps = PLAYLIST_ITEM_RE.captures(line.trim())?;
+    let current_item: u32 = caps[1].parse().ok()?;
+    let total_items: u32 = caps[2].parse().ok()?;
+    Some(PlaylistItemLine { current_item, total_items })
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ProgressLine {
     pub percent: f32,
@@ -84,5 +100,29 @@ mod tests {
         assert!(result.is_some());
         let p = result.unwrap();
         assert!((p.percent - 12.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_parse_playlist_item() {
+        let line = "[download] Downloading item 3 of 10";
+        let result = parse_playlist_item_line(line);
+        assert!(result.is_some());
+        let p = result.unwrap();
+        assert_eq!(p.current_item, 3);
+        assert_eq!(p.total_items, 10);
+    }
+
+    #[test]
+    fn test_parse_playlist_item_first() {
+        let line = "[download] Downloading item 1 of 47";
+        let result = parse_playlist_item_line(line);
+        assert_eq!(result.unwrap(), PlaylistItemLine { current_item: 1, total_items: 47 });
+    }
+
+    #[test]
+    fn test_parse_playlist_item_no_match() {
+        assert!(parse_playlist_item_line("[download]  47.3% of 18.23MiB at 1.23MiB/s ETA 00:09").is_none());
+        assert!(parse_playlist_item_line("[download] Destination: /tmp/foo.mp4").is_none());
+        assert!(parse_playlist_item_line("[info] some line").is_none());
     }
 }

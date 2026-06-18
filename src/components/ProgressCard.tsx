@@ -23,6 +23,11 @@ export function ProgressCard({ status, progress, error }: ProgressCardProps) {
     >
       {status === 'downloading' && (
         <>
+          {progress?.current_item != null && progress.total_items != null && (
+            <div className="flex items-center gap-2 text-xs text-violet-400 font-medium">
+              <span>Video {progress.current_item} / {progress.total_items}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between text-sm">
             <span className="flex items-center gap-2 text-slate-300">
               <Loader className="w-3.5 h-3.5 animate-spin text-violet-400" />

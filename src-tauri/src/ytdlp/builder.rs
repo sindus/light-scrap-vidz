@@ -76,6 +76,66 @@ impl DownloadCommand {
     }
 }
 
+/// Fetches playlist metadata without downloading videos.
+pub struct PlaylistInfoCommand {
+    pub binary: PathBuf,
+    pub url: String,
+    /// Number of entries to peek at (enough to retrieve playlist_count).
+    pub peek: u32,
+}
+
+impl PlaylistInfoCommand {
+    pub fn build(&self) -> Command {
+        let mut cmd = Command::new(&self.binary);
+        cmd.args([
+            "--flat-playlist",
+            "--dump-single-json",
+            "--playlist-end",
+            &self.peek.to_string(),
+            "--no-warnings",
+            &self.url,
+        ]);
+        cmd
+    }
+}
+
+/// Downloads all or a limited set of items from a playlist / profile.
+/// Items are ordered newest-first on most social platforms (Instagram, TikTok, YouTube).
+/// `playlist_end = None` downloads all items; `Some(n)` limits to the first n (= latest n).
+pub struct PlaylistDownloadCommand {
+    pub binary: PathBuf,
+    pub url: String,
+    pub output_dir: PathBuf,
+    pub quality: Quality,
+    pub playlist_end: Option<u32>,
+}
+
+impl PlaylistDownloadCommand {
+    pub fn build(&self) -> Command {
+        let mut cmd = Command::new(&self.binary);
+        cmd.args([
+            "-f",
+            self.quality.format_spec(),
+            "--merge-output-format",
+            "mp4",
+            "--yes-playlist",
+            "--progress",
+            "--newline",
+            "-P",
+            self.output_dir.to_str().unwrap_or("."),
+            "-o",
+            "%(playlist_index)s - %(title)s.%(ext)s",
+        ]);
+        if let Some(n) = self.playlist_end {
+            if n > 0 {
+                cmd.args(["--playlist-end", &n.to_string()]);
+            }
+        }
+        cmd.arg(&self.url);
+        cmd
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +192,53 @@ mod tests {
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
         let spec_idx = args.iter().position(|a| a == "-f").unwrap();
         assert!(!args[spec_idx + 1].contains("height"));
+    }
+
+    #[test]
+    fn test_playlist_info_command_args() {
+        let cmd = PlaylistInfoCommand {
+            binary: PathBuf::from("/usr/bin/yt-dlp"),
+            url: "https://youtube.com/@channel".to_string(),
+            peek: 5,
+        };
+        let built = cmd.build();
+        let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(args.contains(&"--flat-playlist".to_string()));
+        assert!(args.contains(&"--dump-single-json".to_string()));
+        assert!(args.contains(&"5".to_string()));
+        assert!(!args.contains(&"--no-playlist".to_string()));
+    }
+
+    #[test]
+    fn test_playlist_download_with_end() {
+        let cmd = PlaylistDownloadCommand {
+            binary: PathBuf::from("/usr/bin/yt-dlp"),
+            url: "https://youtube.com/@channel".to_string(),
+            output_dir: PathBuf::from("/tmp/downloads"),
+            quality: Quality::Best,
+            playlist_end: Some(10),
+        };
+        let built = cmd.build();
+        let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(args.contains(&"--yes-playlist".to_string()));
+        assert!(args.contains(&"--playlist-end".to_string()));
+        assert!(args.contains(&"10".to_string()));
+        assert!(!args.contains(&"--no-playlist".to_string()));
+        assert!(args.iter().any(|a| a.contains("playlist_index")));
+    }
+
+    #[test]
+    fn test_playlist_download_all() {
+        let cmd = PlaylistDownloadCommand {
+            binary: PathBuf::from("/usr/bin/yt-dlp"),
+            url: "https://youtube.com/@channel".to_string(),
+            output_dir: PathBuf::from("/tmp"),
+            quality: Quality::Best,
+            playlist_end: None,
+        };
+        let built = cmd.build();
+        let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(args.contains(&"--yes-playlist".to_string()));
+        assert!(!args.contains(&"--playlist-end".to_string()));
     }
 }
