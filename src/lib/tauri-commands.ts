@@ -1,11 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { PlaylistInfo, VideoInfo } from '@/types';
+import type { CookiesBrowser, PlaylistInfo, VideoInfo } from '@/types';
 
-export const fetchVideoInfo = (url: string): Promise<VideoInfo> =>
-  invoke('fetch_video_info', { url });
+export const fetchVideoInfo = (url: string, cookiesBrowser?: CookiesBrowser): Promise<VideoInfo> =>
+  invoke('fetch_video_info', { url, cookiesBrowser: cookiesBrowser ?? null });
 
-export const fetchPlaylistInfo = (url: string): Promise<PlaylistInfo> =>
-  invoke('fetch_playlist_info', { url });
+export const fetchPlaylistInfo = (
+  url: string,
+  cookiesBrowser?: CookiesBrowser,
+): Promise<PlaylistInfo> =>
+  invoke('fetch_playlist_info', { url, cookiesBrowser: cookiesBrowser ?? null });
 
 export const startDownload = (
   url: string,
@@ -13,6 +16,7 @@ export const startDownload = (
   quality: string,
   downloadId: string,
   playlistEnd?: number | null,
+  cookiesBrowser?: CookiesBrowser,
 ): Promise<void> =>
   invoke('start_download', {
     url,
@@ -20,6 +24,7 @@ export const startDownload = (
     quality,
     downloadId,
     playlistEnd: playlistEnd ?? null,
+    cookiesBrowser: cookiesBrowser ?? null,
   });
 
 export const cancelDownload = (downloadId: string): Promise<void> =>

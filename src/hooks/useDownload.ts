@@ -3,6 +3,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { v4 as uuidv4 } from 'uuid';
 import { startDownload, cancelDownload } from '@/lib/tauri-commands';
 import type {
+  CookiesBrowser,
   DownloadStatus,
   DownloadProgress,
   DownloadComplete,
@@ -20,6 +21,7 @@ interface DownloadContext {
   playlistInfo: PlaylistInfo | null;
   quality: Quality;
   playlistEnd: number | null;
+  cookiesBrowser: CookiesBrowser;
 }
 
 interface UseDownloadReturn {
@@ -34,6 +36,7 @@ interface UseDownloadReturn {
     info: VideoInfo | null,
     playlistInfo: PlaylistInfo | null,
     playlistEnd: number | null,
+    cookiesBrowser: CookiesBrowser,
   ) => Promise<void>;
   cancel: () => Promise<void>;
   reset: () => void;
@@ -65,11 +68,12 @@ export function useDownload(): UseDownloadReturn {
       info: VideoInfo | null,
       playlistInfo: PlaylistInfo | null,
       playlistEnd: number | null,
+      cookiesBrowser: CookiesBrowser,
     ) => {
       cleanup();
       const id = uuidv4();
       downloadIdRef.current = id;
-      currentContextRef.current = { url, info, playlistInfo, quality, playlistEnd };
+      currentContextRef.current = { url, info, playlistInfo, quality, playlistEnd, cookiesBrowser };
       setStatus('downloading');
       setProgress(null);
       setError(null);
@@ -134,7 +138,7 @@ export function useDownload(): UseDownloadReturn {
       unlistenRefs.current = [unlistenProgress, unlistenComplete, unlistenError];
 
       try {
-        await startDownload(url, outputDir, quality, id, playlistEnd);
+        await startDownload(url, outputDir, quality, id, playlistEnd, cookiesBrowser);
       } catch (err) {
         setStatus('error');
         setError(err instanceof Error ? err.message : String(err));

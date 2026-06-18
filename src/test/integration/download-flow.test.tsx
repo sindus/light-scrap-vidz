@@ -37,6 +37,7 @@ describe('download flow integration', () => {
     expect(result.current.info?.title).toBe('Rick Astley - Never Gonna Give You Up');
     expect(mockInvoke).toHaveBeenCalledWith('fetch_video_info', {
       url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      cookiesBrowser: null,
     });
   });
 

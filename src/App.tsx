@@ -5,6 +5,7 @@ import { VideoPreview } from '@/components/VideoPreview';
 import { PlaylistPreview } from '@/components/PlaylistPreview';
 import { FormatSelector } from '@/components/FormatSelector';
 import { PlaylistEndSelector } from '@/components/PlaylistEndSelector';
+import { BrowserCookieSelector } from '@/components/BrowserCookieSelector';
 import { FolderPicker } from '@/components/FolderPicker';
 import { DownloadButton } from '@/components/DownloadButton';
 import { ProgressCard } from '@/components/ProgressCard';
@@ -15,7 +16,7 @@ import { usePlaylistInfo } from '@/hooks/usePlaylistInfo';
 import { useDownload } from '@/hooks/useDownload';
 import { useHistory } from '@/hooks/useHistory';
 import { isPlaylistUrl } from '@/lib/url-validator';
-import type { Quality, UrlKind } from '@/types';
+import type { CookiesBrowser, Quality, UrlKind } from '@/types';
 
 export default function App() {
   const [url, setUrl] = useState('');
@@ -23,6 +24,7 @@ export default function App() {
   const [outputDir, setOutputDir] = useState('');
   const [urlKind, setUrlKind] = useState<UrlKind>('single');
   const [playlistEnd, setPlaylistEnd] = useState<number>(10);
+  const [cookiesBrowser, setCookiesBrowser] = useState<CookiesBrowser>(null);
 
   const {
     info,
@@ -63,23 +65,23 @@ export default function App() {
 
       if (isPlaylistUrl(submittedUrl)) {
         setUrlKind('playlist');
-        await fetchPlInfo(submittedUrl);
+        await fetchPlInfo(submittedUrl, cookiesBrowser ?? undefined);
       } else {
         setUrlKind('single');
-        await fetchInfo(submittedUrl);
+        await fetchInfo(submittedUrl, cookiesBrowser ?? undefined);
       }
     },
-    [fetchInfo, fetchPlInfo, resetDownload, resetInfo, resetPlInfo],
+    [fetchInfo, fetchPlInfo, resetDownload, resetInfo, resetPlInfo, cookiesBrowser],
   );
 
   const handleDownload = useCallback(async () => {
     if (!outputDir) return;
     if (urlKind === 'playlist' && plInfo) {
-      await download(url, outputDir, quality, null, plInfo, playlistEnd);
+      await download(url, outputDir, quality, null, plInfo, playlistEnd, cookiesBrowser);
     } else if (info) {
-      await download(url, outputDir, quality, info, null, null);
+      await download(url, outputDir, quality, info, null, null, cookiesBrowser);
     }
-  }, [info, plInfo, outputDir, url, quality, urlKind, playlistEnd, download]);
+  }, [info, plInfo, outputDir, url, quality, urlKind, playlistEnd, cookiesBrowser, download]);
 
   const handleReset = useCallback(() => {
     setUrl('');
@@ -135,6 +137,13 @@ export default function App() {
                   <FormatSelector
                     value={quality}
                     onChange={setQuality}
+                    disabled={isBusy || isActive}
+                  />
+
+                  <Separator />
+                  <BrowserCookieSelector
+                    value={cookiesBrowser}
+                    onChange={setCookiesBrowser}
                     disabled={isBusy || isActive}
                   />
 

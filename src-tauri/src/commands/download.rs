@@ -35,6 +35,7 @@ pub struct CompletePayload {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn start_download(
     app: tauri::AppHandle,
     state: tauri::State<'_, DownloadRegistry>,
@@ -43,6 +44,7 @@ pub async fn start_download(
     quality: String,
     download_id: String,
     playlist_end: Option<u32>,
+    cookies_browser: Option<String>,
 ) -> Result<(), String> {
     let binary = YtDlpBinary::find()?;
     let q = Quality::from_str(&quality);
@@ -56,6 +58,7 @@ pub async fn start_download(
                 url,
                 output_dir: PathBuf::from(&output_dir),
                 quality: q,
+                cookies_browser,
             };
             tokio::process::Command::from(cmd.build())
                 .stdout(Stdio::piped())
@@ -72,6 +75,7 @@ pub async fn start_download(
                 output_dir: PathBuf::from(&output_dir),
                 quality: q,
                 playlist_end: end,
+                cookies_browser,
             };
             tokio::process::Command::from(cmd.build())
                 .stdout(Stdio::piped())

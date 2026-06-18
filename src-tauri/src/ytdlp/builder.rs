@@ -38,11 +38,15 @@ impl Quality {
 pub struct InfoCommand {
     pub binary: PathBuf,
     pub url: String,
+    pub cookies_browser: Option<String>,
 }
 
 impl InfoCommand {
     pub fn build(&self) -> Command {
         let mut cmd = Command::new(&self.binary);
+        if let Some(browser) = &self.cookies_browser {
+            cmd.args(["--cookies-from-browser", browser]);
+        }
         cmd.args(["--dump-json", "--no-playlist", &self.url]);
         cmd
     }
@@ -53,11 +57,15 @@ pub struct DownloadCommand {
     pub url: String,
     pub output_dir: PathBuf,
     pub quality: Quality,
+    pub cookies_browser: Option<String>,
 }
 
 impl DownloadCommand {
     pub fn build(&self) -> Command {
         let mut cmd = Command::new(&self.binary);
+        if let Some(browser) = &self.cookies_browser {
+            cmd.args(["--cookies-from-browser", browser]);
+        }
         cmd.args([
             "-f",
             self.quality.format_spec(),
@@ -82,11 +90,15 @@ pub struct PlaylistInfoCommand {
     pub url: String,
     /// Number of entries to peek at (enough to retrieve playlist_count).
     pub peek: u32,
+    pub cookies_browser: Option<String>,
 }
 
 impl PlaylistInfoCommand {
     pub fn build(&self) -> Command {
         let mut cmd = Command::new(&self.binary);
+        if let Some(browser) = &self.cookies_browser {
+            cmd.args(["--cookies-from-browser", browser]);
+        }
         cmd.args([
             "--flat-playlist",
             "--dump-single-json",
@@ -108,11 +120,15 @@ pub struct PlaylistDownloadCommand {
     pub output_dir: PathBuf,
     pub quality: Quality,
     pub playlist_end: Option<u32>,
+    pub cookies_browser: Option<String>,
 }
 
 impl PlaylistDownloadCommand {
     pub fn build(&self) -> Command {
         let mut cmd = Command::new(&self.binary);
+        if let Some(browser) = &self.cookies_browser {
+            cmd.args(["--cookies-from-browser", browser]);
+        }
         cmd.args([
             "-f",
             self.quality.format_spec(),
@@ -154,6 +170,7 @@ mod tests {
         let cmd = InfoCommand {
             binary: PathBuf::from("/usr/bin/yt-dlp"),
             url: "https://www.youtube.com/watch?v=test".to_string(),
+            cookies_browser: None,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -169,6 +186,7 @@ mod tests {
             url: "https://www.youtube.com/watch?v=test".to_string(),
             output_dir: PathBuf::from("/tmp/downloads"),
             quality: Quality::P1080,
+            cookies_browser: None,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -187,6 +205,7 @@ mod tests {
             url: "https://example.com".to_string(),
             output_dir: PathBuf::from("/tmp"),
             quality: Quality::Best,
+            cookies_browser: None,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -200,6 +219,7 @@ mod tests {
             binary: PathBuf::from("/usr/bin/yt-dlp"),
             url: "https://youtube.com/@channel".to_string(),
             peek: 5,
+            cookies_browser: None,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -217,6 +237,7 @@ mod tests {
             output_dir: PathBuf::from("/tmp/downloads"),
             quality: Quality::Best,
             playlist_end: Some(10),
+            cookies_browser: None,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
@@ -235,10 +256,41 @@ mod tests {
             output_dir: PathBuf::from("/tmp"),
             quality: Quality::Best,
             playlist_end: None,
+            cookies_browser: None,
         };
         let built = cmd.build();
         let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
         assert!(args.contains(&"--yes-playlist".to_string()));
         assert!(!args.contains(&"--playlist-end".to_string()));
+    }
+
+    #[test]
+    fn test_cookies_from_browser_injected() {
+        let cmd = DownloadCommand {
+            binary: PathBuf::from("/usr/bin/yt-dlp"),
+            url: "https://www.instagram.com/p/test/".to_string(),
+            output_dir: PathBuf::from("/tmp"),
+            quality: Quality::Best,
+            cookies_browser: Some("firefox".to_string()),
+        };
+        let built = cmd.build();
+        let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(args.contains(&"--cookies-from-browser".to_string()));
+        let idx = args.iter().position(|a| a == "--cookies-from-browser").unwrap();
+        assert_eq!(args[idx + 1], "firefox");
+    }
+
+    #[test]
+    fn test_no_cookies_when_none() {
+        let cmd = DownloadCommand {
+            binary: PathBuf::from("/usr/bin/yt-dlp"),
+            url: "https://www.youtube.com/watch?v=test".to_string(),
+            output_dir: PathBuf::from("/tmp"),
+            quality: Quality::Best,
+            cookies_browser: None,
+        };
+        let built = cmd.build();
+        let args: Vec<String> = built.get_args().map(|a| a.to_string_lossy().into()).collect();
+        assert!(!args.contains(&"--cookies-from-browser".to_string()));
     }
 }

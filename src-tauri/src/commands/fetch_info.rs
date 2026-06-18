@@ -33,10 +33,13 @@ pub struct VideoInfoResponse {
 }
 
 #[tauri::command]
-pub async fn fetch_video_info(url: String) -> Result<VideoInfoResponse, String> {
+pub async fn fetch_video_info(
+    url: String,
+    cookies_browser: Option<String>,
+) -> Result<VideoInfoResponse, String> {
     let binary = YtDlpBinary::find()?;
 
-    let cmd = InfoCommand { binary: binary.path().to_path_buf(), url }.build();
+    let cmd = InfoCommand { binary: binary.path().to_path_buf(), url, cookies_browser }.build();
     let output = tokio::process::Command::from(cmd)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

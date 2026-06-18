@@ -1,5 +1,7 @@
 export type Platform = 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'unknown';
 
+export type CookiesBrowser = 'firefox' | 'chrome' | 'chromium' | null;
+
 export type Quality = 'best' | '1080p' | '720p' | '480p';
 
 export type DownloadStatus =
