@@ -29,6 +29,34 @@ const PLATFORM_PATTERNS: Array<{ platform: Platform; patterns: RegExp[] }> = [
       /^https?:\/\/fb\.watch\//,
     ],
   },
+  {
+    platform: 'dailymotion',
+    patterns: [
+      /^https?:\/\/(www\.)?dailymotion\.com\/video\//,
+      /^https?:\/\/dai\.ly\//,
+    ],
+  },
+  {
+    platform: 'twitter',
+    patterns: [
+      /^https?:\/\/(www\.)?twitter\.com\/.+\/status\//,
+      /^https?:\/\/(www\.)?x\.com\/.+\/status\//,
+    ],
+  },
+  {
+    platform: 'twitch',
+    patterns: [
+      /^https?:\/\/(www\.)?twitch\.tv\/videos\//,
+      /^https?:\/\/clips\.twitch\.tv\//,
+      /^https?:\/\/(www\.)?twitch\.tv\/[^/?#]+\/clip\//,
+    ],
+  },
+  {
+    platform: 'vimeo',
+    patterns: [
+      /^https?:\/\/(www\.)?vimeo\.com\/\d+/,
+    ],
+  },
 ];
 
 // Profile / channel / playlist URLs (ordered newest-first by most platforms)

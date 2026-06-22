@@ -1,4 +1,13 @@
-export type Platform = 'youtube' | 'tiktok' | 'instagram' | 'facebook' | 'unknown';
+export type Platform =
+  | 'youtube'
+  | 'tiktok'
+  | 'instagram'
+  | 'facebook'
+  | 'dailymotion'
+  | 'twitter'
+  | 'twitch'
+  | 'vimeo'
+  | 'unknown';
 
 export type CookiesBrowser = 'firefox' | 'chrome' | 'chromium' | null;
 
