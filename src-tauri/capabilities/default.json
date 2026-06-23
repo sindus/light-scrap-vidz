@@ -13,6 +13,11 @@
     "notification:allow-notify",
     "opener:default",
     "opener:allow-reveal-item-in-dir",
-    "opener:allow-open-path"
+    "opener:allow-open-path",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:default",
+    "process:allow-restart"
   ]
 }

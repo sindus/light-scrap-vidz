@@ -1,5 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { getVersion } from '@tauri-apps/api/app';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { BrowserCookieSelector } from '@/components/BrowserCookieSelector';
 import type { CookiesBrowser } from '@/types';
 
@@ -12,6 +15,8 @@ interface SettingsSheetProps {
   onCookiesBrowserChange: (v: CookiesBrowser) => void;
   detectedBrowsers: string[];
 }
+
+type UpdateState = 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'up-to-date' | 'error';
 
 const sectionLabelStyle: React.CSSProperties = {
   fontSize: '11px',
@@ -40,6 +45,53 @@ export function SettingsButton({
   detectedBrowsers,
 }: SettingsSheetProps) {
   const [notif, setNotif] = useState(true);
+  const [version, setVersion] = useState('');
+  const [updateState, setUpdateState] = useState<UpdateState>('idle');
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number>(0);
+
+  useEffect(() => {
+    if (isOpen && !version) {
+      void getVersion().then(setVersion).catch(() => {});
+    }
+  }, [isOpen, version]);
+
+  const handleCheckUpdate = useCallback(async () => {
+    setUpdateState('checking');
+    setUpdateError(null);
+    setUpdateVersion(null);
+    try {
+      const update = await check();
+      if (!update?.available) {
+        setUpdateState('up-to-date');
+        return;
+      }
+      setUpdateVersion(update.version);
+      setUpdateState('available');
+
+      // Start download immediately
+      setUpdateState('downloading');
+      setDownloadProgress(0);
+      let downloaded = 0;
+      let total = 0;
+      await update.downloadAndInstall((event) => {
+        if (event.event === 'Started') {
+          total = event.data.contentLength ?? 0;
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength;
+          if (total > 0) setDownloadProgress(Math.round((downloaded / total) * 100));
+        } else if (event.event === 'Finished') {
+          setDownloadProgress(100);
+        }
+      });
+      setUpdateState('installing');
+      await relaunch();
+    } catch (e) {
+      setUpdateState('error');
+      setUpdateError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   const handlePickFolder = useCallback(async () => {
     const selected = await open({ directory: true, multiple: false });
@@ -47,6 +99,20 @@ export function SettingsButton({
       onOutputDirChange(selected);
     }
   }, [onOutputDirChange]);
+
+  const updateLabel = () => {
+    switch (updateState) {
+      case 'checking': return 'Checking…';
+      case 'downloading': return downloadProgress > 0 ? `Downloading ${downloadProgress}%` : 'Downloading…';
+      case 'installing': return 'Installing…';
+      case 'up-to-date': return 'Up to date ✓';
+      case 'error': return 'Retry update';
+      case 'available': return updateVersion ? `Update to v${updateVersion}` : 'Update available';
+      default: return 'Check for updates';
+    }
+  };
+
+  const isUpdating = updateState === 'checking' || updateState === 'downloading' || updateState === 'installing';
 
   if (!isOpen) return null;
 
@@ -74,6 +140,7 @@ export function SettingsButton({
           flexDirection: 'column',
           gap: 6,
           zIndex: 41,
+          overflowY: 'auto',
           animation: 'lsv-fade 0.18s ease',
         }}
       >
@@ -84,21 +151,12 @@ export function SettingsButton({
             onClick={onClose}
             aria-label="Close settings"
             style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: '#211F1B',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#A39D93',
+              width: 30, height: 30, borderRadius: 8, background: '#211F1B', border: 'none',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#A39D93',
             }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 6L6 18" />
-              <path d="M6 6l12 12" />
+              <path d="M18 6L6 18" /><path d="M6 6l12 12" />
             </svg>
           </button>
         </div>
@@ -111,16 +169,9 @@ export function SettingsButton({
           <button
             onClick={handlePickFolder}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              width: '100%',
-              background: 'transparent',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              color: outputDir ? '#D6D1C8' : '#6F6960',
-              transition: 'all .15s',
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+              background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+              color: outputDir ? '#D6D1C8' : '#6F6960', transition: 'all .15s',
             }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = '#C9F25E'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = outputDir ? '#D6D1C8' : '#6F6960'; }}
@@ -128,17 +179,7 @@ export function SettingsButton({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
               <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
             </svg>
-            <span
-              style={{
-                fontSize: '12.5px',
-                fontFamily: "'JetBrains Mono', monospace",
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                direction: 'rtl',
-                textAlign: 'left',
-              }}
-            >
+            <span style={{ fontSize: '12.5px', fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', direction: 'rtl', textAlign: 'left' }}>
               {outputDir || 'Choose folder…'}
             </span>
           </button>
@@ -153,29 +194,15 @@ export function SettingsButton({
             onClick={() => setNotif((v) => !v)}
             aria-label="Toggle notification"
             style={{
-              width: 42,
-              height: 24,
-              borderRadius: 999,
-              border: 'none',
-              cursor: 'pointer',
-              background: notif ? '#C9F25E' : '#211F1B',
-              position: 'relative',
-              transition: 'all .15s',
-              flexShrink: 0,
+              width: 42, height: 24, borderRadius: 999, border: 'none', cursor: 'pointer',
+              background: notif ? '#C9F25E' : '#211F1B', position: 'relative', transition: 'all .15s', flexShrink: 0,
             }}
           >
-            <span
-              style={{
-                position: 'absolute',
-                top: 3,
-                left: notif ? 21 : 3,
-                width: 18,
-                height: 18,
-                borderRadius: '50%',
-                background: notif ? '#14140C' : '#857F75',
-                transition: 'all .15s',
-              }}
-            />
+            <span style={{
+              position: 'absolute', top: 3, left: notif ? 21 : 3,
+              width: 18, height: 18, borderRadius: '50%',
+              background: notif ? '#14140C' : '#857F75', transition: 'all .15s',
+            }} />
           </button>
         </div>
 
@@ -191,30 +218,96 @@ export function SettingsButton({
           />
         </div>
 
-        {/* Footer */}
-        <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 8, paddingTop: 12 }}>
-          <div
+        {/* ABOUT section */}
+        <div style={sectionLabelStyle}>About</div>
+
+        <div style={cardStyle}>
+          {/* App identity */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 9, background: '#C9F25E',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#14140C', flexShrink: 0,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M12 4v11" /><path d="M7 11l5 5 5-5" /><path d="M5 20h14" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#F1EDE6' }}>light-scrap-vidZ</div>
+              <div style={{ fontSize: '11.5px', fontFamily: "'JetBrains Mono', monospace", color: '#6F6960', marginTop: 1 }}>
+                {version ? `v${version}` : '…'}
+              </div>
+            </div>
+          </div>
+
+          {/* Separator */}
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', marginBottom: 12 }} />
+
+          {/* Update button */}
+          <button
+            onClick={() => { if (!isUpdating) void handleCheckUpdate(); }}
+            disabled={isUpdating}
             style={{
-              width: 20,
-              height: 20,
-              borderRadius: 6,
-              background: '#C9F25E',
+              width: '100%',
+              height: 38,
+              borderRadius: 9,
+              border: `1px solid ${updateState === 'up-to-date' ? 'rgba(201,242,94,0.25)' : updateState === 'error' ? 'rgba(255,138,138,0.25)' : 'rgba(255,255,255,0.10)'}`,
+              background: isUpdating ? 'rgba(201,242,94,0.06)' : '#211F1B',
+              color: updateState === 'up-to-date' ? '#C9F25E' : updateState === 'error' ? '#FF8A8A' : '#D6D1C8',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: isUpdating ? 'default' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#14140C',
-              flexShrink: 0,
+              gap: 8,
+              transition: 'all .15s',
+              position: 'relative',
+              overflow: 'hidden',
             }}
+            onMouseEnter={(e) => { if (!isUpdating) (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.20)'; }}
+            onMouseLeave={(e) => { if (!isUpdating) (e.currentTarget as HTMLButtonElement).style.borderColor = updateState === 'error' ? 'rgba(255,138,138,0.25)' : 'rgba(255,255,255,0.10)'; }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M12 4v11" />
-              <path d="M7 11l5 5 5-5" />
-              <path d="M5 20h14" />
-            </svg>
-          </div>
-          <span style={{ fontSize: '11.5px', fontFamily: "'JetBrains Mono', monospace", color: '#6F6960' }}>
-            light-scrap-vidZ · v1.0 · yt-dlp bundled
-          </span>
+            {/* Download progress bar */}
+            {updateState === 'downloading' && downloadProgress > 0 && (
+              <div style={{
+                position: 'absolute', left: 0, top: 0, height: '100%',
+                width: `${downloadProgress}%`,
+                background: 'rgba(201,242,94,0.12)',
+                transition: 'width 0.3s',
+              }} />
+            )}
+
+            {isUpdating ? (
+              <span
+                className="lsv-spin"
+                style={{
+                  width: 14, height: 14, borderRadius: '50%',
+                  border: '2px solid rgba(201,242,94,0.3)',
+                  borderTopColor: '#C9F25E',
+                  display: 'inline-block', flexShrink: 0,
+                }}
+              />
+            ) : updateState === 'up-to-date' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            )}
+            <span style={{ position: 'relative' }}>{updateLabel()}</span>
+          </button>
+
+          {/* Error message */}
+          {updateState === 'error' && updateError && (
+            <div style={{ fontSize: '11px', color: '#FF8A8A', marginTop: 8, lineHeight: 1.4 }}>
+              {updateError}
+            </div>
+          )}
         </div>
       </div>
     </>

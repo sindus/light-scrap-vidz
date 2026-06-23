@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "light-scrap-vidZ",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "com.lightscrape.vidz",
   "build": {
     "frontendDist": "../dist",
@@ -40,6 +40,14 @@
       "deb": {
         "depends": ["ffmpeg", "yt-dlp"]
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJCRjc0MUExN0YyRUQyN0IKUldSNzBpNS9vVUgzSzNMeUt3bWd4K0VJUlFKcGwwajFpMzVHK25EemMzUFQrUWtZcktJUzM5b2UK",
+      "endpoints": [
+        "https://github.com/sindus/light-scrap-vidz/releases/latest/download/latest.json"
+      ]
     }
   }
 }
