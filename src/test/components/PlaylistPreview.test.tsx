@@ -19,7 +19,7 @@ describe('PlaylistPreview', () => {
 
   it('renders uploader name', () => {
     render(<PlaylistPreview info={mockPlaylist} url="https://www.youtube.com/@testuser" />);
-    expect(screen.getByText('TestUser')).toBeInTheDocument();
+    expect(screen.getByText(/TestUser/)).toBeInTheDocument();
   });
 
   it('renders video count', () => {
@@ -29,7 +29,12 @@ describe('PlaylistPreview', () => {
 
   it('renders platform badge', () => {
     render(<PlaylistPreview info={mockPlaylist} url="https://www.youtube.com/@testuser" />);
-    expect(screen.getByText(/youtube playlist/i)).toBeInTheDocument();
+    expect(screen.getByText('YouTube')).toBeInTheDocument();
+  });
+
+  it('renders Playlist label', () => {
+    render(<PlaylistPreview info={mockPlaylist} url="https://www.youtube.com/@testuser" />);
+    expect(screen.getByText('Playlist')).toBeInTheDocument();
   });
 
   it('handles missing playlist_count gracefully', () => {

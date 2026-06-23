@@ -11,7 +11,7 @@ export function PlaylistPreview({ info, url }: PlaylistPreviewProps) {
   const platform = getPlatform(url);
   const meta = PLATFORM_META[platform] ?? PLATFORM_META['unknown'];
   const tint = PLATFORM_TINT[platform] ?? PLATFORM_TINT['unknown'];
-  const count = info.playlist_count ?? info.entries?.length ?? 0;
+  const count = info.playlist_count ?? (info.entries?.length || null);
 
   return (
     <div
@@ -82,7 +82,7 @@ export function PlaylistPreview({ info, url }: PlaylistPreviewProps) {
         </h3>
 
         <div style={{ fontSize: '12.5px', fontFamily: "'JetBrains Mono', monospace", color: '#857F75' }}>
-          {[info.uploader, `Playlist · ${count} videos`].filter(Boolean).join(' · ')}
+          {[info.uploader, count != null ? `Playlist · ${count} videos` : 'Playlist'].filter(Boolean).join(' · ')}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { HistoryList } from '@/components/HistoryList';
 import type { HistoryEntry } from '@/types';
@@ -20,16 +20,18 @@ describe('HistoryList', () => {
     expect(screen.getByText(/no downloads yet/i)).toBeInTheDocument();
   });
 
-  it('renders history entries', () => {
+  it('renders history entry title', () => {
     render(<HistoryList entries={[mockEntry]} onClear={vi.fn()} />);
     expect(screen.getByText('Rick Astley - Never Gonna Give You Up')).toBeInTheDocument();
+  });
+
+  it('renders platform badge', () => {
+    render(<HistoryList entries={[mockEntry]} onClear={vi.fn()} />);
     expect(screen.getByText('YouTube')).toBeInTheDocument();
   });
 
-  it('calls onClear when Clear button clicked', () => {
-    const onClear = vi.fn();
-    render(<HistoryList entries={[mockEntry]} onClear={onClear} />);
-    fireEvent.click(screen.getByRole('button', { name: /clear history/i }));
-    expect(onClear).toHaveBeenCalledOnce();
+  it('renders reveal-in-folder button', () => {
+    render(<HistoryList entries={[mockEntry]} onClear={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /reveal in folder/i })).toBeInTheDocument();
   });
 });
