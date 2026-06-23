@@ -44,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJCRjc0MUExN0YyRUQyN0IKUldSNzBpNS9vVUgzSzNMeUt3bWd4K0VJUlFKcGwwajFpMzVHK25EemMzUFQrUWtZcktJUzM5b2UK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEI3NzUwNTc5RTAwOEUyOApSV1FvamdDZVYxQjNDeUhXd1NmOXB6aFN2YVo0emQxTkpwdllZS3J2a2s0b3FMcm1lZ2o4YkptMQo=",
       "endpoints": [
         "https://github.com/sindus/light-scrap-vidz/releases/latest/download/latest.json"
       ]
