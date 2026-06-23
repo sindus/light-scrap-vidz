@@ -1,73 +1,58 @@
-import { Download, X, Play, FolderOpen } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { openFile, openFolder } from '@/lib/tauri-commands';
-import type { DownloadStatus } from '@/types';
-
 interface DownloadButtonProps {
-  status: DownloadStatus;
   disabled?: boolean;
   audioOnly?: boolean;
-  completedPath?: string | null;
+  isPlaylist?: boolean;
+  playlistCount?: number | null;
   onDownload: () => void;
-  onCancel: () => void;
-  onReset: () => void;
 }
 
 export function DownloadButton({
-  status,
   disabled,
   audioOnly,
-  completedPath,
+  isPlaylist,
+  playlistCount,
   onDownload,
-  onCancel,
-  onReset,
 }: DownloadButtonProps) {
-  if (status === 'downloading') {
-    return (
-      <Button variant="destructive" onClick={onCancel} className="w-full">
-        <X className="w-4 h-4" />
-        Cancel
-      </Button>
-    );
+  let label: string;
+  if (isPlaylist) {
+    const n = playlistCount ?? 0;
+    label = audioOnly ? `Extract ${n} MP3s` : `Download ${n} videos`;
+  } else {
+    label = audioOnly ? 'Extract MP3' : 'Download MP4';
   }
 
-  if (status === 'complete' || status === 'error' || status === 'cancelled') {
-    return (
-      <div className="flex gap-2">
-        {status === 'complete' && completedPath && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void openFile(completedPath)}
-              className="shrink-0 text-violet-400 hover:text-violet-300"
-              title="Open file"
-            >
-              <Play className="w-3.5 h-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void openFolder(completedPath)}
-              className="shrink-0 text-slate-500 hover:text-slate-300"
-              title="Reveal in folder"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-            </Button>
-          </>
-        )}
-        <Button variant="outline" onClick={onReset} className="flex-1">
-          Download another
-        </Button>
-      </div>
-    );
-  }
-
-  const label = audioOnly ? 'Extract MP3' : 'Download MP4';
   return (
-    <Button onClick={onDownload} disabled={disabled} className="w-full" size="lg">
-      <Download className="w-4 h-4" />
+    <button
+      onClick={onDownload}
+      disabled={disabled}
+      style={{
+        width: '100%',
+        height: 56,
+        borderRadius: 14,
+        border: 'none',
+        background: '#C9F25E',
+        color: '#14140C',
+        fontSize: '15.5px',
+        fontWeight: 700,
+        fontFamily: "'Hanken Grotesk', sans-serif",
+        cursor: disabled ? 'default' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        boxShadow: '0 10px 28px rgba(201,242,94,0.32)',
+        transition: 'all .15s',
+      }}
+      onMouseEnter={(e) => { if (!disabled) { (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-1px)'; (e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.06)'; } }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = 'none'; (e.currentTarget as HTMLButtonElement).style.filter = 'none'; }}
+    >
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3v12" />
+        <path d="M7 11l5 5 5-5" />
+        <path d="M5 21h14" />
+      </svg>
       {label}
-    </Button>
+    </button>
   );
 }

@@ -1,40 +1,44 @@
-import { Hash } from 'lucide-react';
-import { Select } from '@/components/ui/select';
-
-const OPTIONS = [
-  { value: '5', label: 'Latest 5 videos' },
-  { value: '10', label: 'Latest 10 videos' },
-  { value: '20', label: 'Latest 20 videos' },
-  { value: '50', label: 'Latest 50 videos' },
-  { value: '0', label: 'All videos' },
-];
-
 interface PlaylistEndSelectorProps {
   value: number;
   onChange: (n: number) => void;
   disabled?: boolean;
 }
 
+const OPTIONS = [
+  { value: '5', label: 'Latest 5' },
+  { value: '10', label: 'Latest 10' },
+  { value: '20', label: 'Latest 20' },
+  { value: '50', label: 'Latest 50' },
+  { value: '0', label: 'All videos' },
+];
+
 export function PlaylistEndSelector({ value, onChange, disabled }: PlaylistEndSelectorProps) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex items-center gap-1.5 text-sm text-slate-400 shrink-0">
-        <Hash className="w-3.5 h-3.5 text-violet-400" />
-        Download
-      </span>
-      <Select
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: '13px', fontWeight: 600, color: '#C2BCB2', flexShrink: 0 }}>Count</span>
+      <select
         value={String(value)}
         onChange={(e) => onChange(Number(e.target.value))}
         disabled={disabled}
-        className="flex-1"
         aria-label="Number of videos to download"
+        style={{
+          background: '#211F1B',
+          border: '1px solid rgba(255,255,255,0.10)',
+          color: '#D6D1C8',
+          borderRadius: 8,
+          fontSize: '12.5px',
+          fontWeight: 600,
+          padding: '6px 10px',
+          cursor: disabled ? 'default' : 'pointer',
+          outline: 'none',
+        }}
       >
         {OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value} className="bg-slate-900">
+          <option key={opt.value} value={opt.value} style={{ background: '#1A1916' }}>
             {opt.label}
           </option>
         ))}
-      </Select>
+      </select>
     </div>
   );
 }

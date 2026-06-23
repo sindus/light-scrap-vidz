@@ -1,9 +1,7 @@
-import { Cookie } from 'lucide-react';
-import { Select } from '@/components/ui/select';
 import type { CookiesBrowser } from '@/types';
 
-const ALL_OPTIONS: { value: string; label: string; browser: string | null }[] = [
-  { value: '', label: 'No authentication', browser: null },
+const ALL_OPTIONS: { value: CookiesBrowser; label: string; browser: string | null }[] = [
+  { value: null, label: 'None', browser: null },
   { value: 'firefox', label: 'Firefox', browser: 'firefox' },
   { value: 'chrome', label: 'Chrome', browser: 'chrome' },
   { value: 'chromium', label: 'Chromium', browser: 'chromium' },
@@ -22,31 +20,39 @@ export function BrowserCookieSelector({
   disabled,
   detectedBrowsers,
 }: BrowserCookieSelectorProps) {
-  // Show all options if detection not done yet; otherwise only detected + none
   const options =
     detectedBrowsers && detectedBrowsers.length > 0
       ? ALL_OPTIONS.filter((o) => o.browser === null || detectedBrowsers.includes(o.browser))
       : ALL_OPTIONS;
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="flex items-center gap-1.5 text-sm text-slate-400 shrink-0">
-        <Cookie className="w-3.5 h-3.5 text-violet-400" />
-        Auth
-      </span>
-      <Select
-        value={value ?? ''}
-        onChange={(e) => onChange((e.target.value || null) as CookiesBrowser)}
-        disabled={disabled}
-        className="flex-1"
-        aria-label="Browser for cookie authentication"
-      >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value} className="bg-slate-900">
-            {opt.browser ? `${opt.label} (logged in)` : opt.label}
-          </option>
-        ))}
-      </Select>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: '13px', fontWeight: 600, color: '#C2BCB2', flexShrink: 0 }}>Sign-in</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        {options.map((opt) => {
+          const active = value === opt.value;
+          return (
+            <button
+              key={opt.label}
+              onClick={() => onChange(opt.value)}
+              disabled={disabled}
+              style={{
+                padding: '5px 11px',
+                borderRadius: 8,
+                cursor: disabled ? 'default' : 'pointer',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                background: active ? '#C9F25E' : '#211F1B',
+                color: active ? '#14140C' : '#B6B0A6',
+                border: active ? '1px solid transparent' : '1px solid rgba(255,255,255,0.10)',
+                transition: 'all .15s',
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

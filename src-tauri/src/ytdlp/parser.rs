@@ -11,6 +11,10 @@ static PROGRESS_RE: LazyLock<Regex> = LazyLock::new(|| {
 static DESTINATION_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[download\] Destination: (.+)$").unwrap());
 
+// Captures the final merged filepath when yt-dlp combines video+audio streams
+static MERGER_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"^\[Merger\] Merging formats into "(.+)"$"#).unwrap());
+
 static PLAYLIST_ITEM_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[download\] Downloading item (\d+) of (\d+)").unwrap());
 
@@ -43,7 +47,11 @@ pub fn parse_progress_line(line: &str) -> Option<ProgressLine> {
 }
 
 pub fn parse_destination_line(line: &str) -> Option<String> {
-    let caps = DESTINATION_RE.captures(line.trim())?;
+    let trimmed = line.trim();
+    if let Some(caps) = MERGER_RE.captures(trimmed) {
+        return Some(caps[1].trim().to_string());
+    }
+    let caps = DESTINATION_RE.captures(trimmed)?;
     Some(caps[1].trim().to_string())
 }
 
@@ -91,6 +99,13 @@ mod tests {
     fn test_non_matching_line() {
         assert!(parse_progress_line("[info] Some other line").is_none());
         assert!(parse_destination_line("[info] Some other line").is_none());
+    }
+
+    #[test]
+    fn test_parse_merger_destination() {
+        let line = r#"[Merger] Merging formats into "/home/user/Downloads/Big Buck Bunny.mp4""#;
+        let result = parse_destination_line(line);
+        assert_eq!(result, Some("/home/user/Downloads/Big Buck Bunny.mp4".to_string()));
     }
 
     #[test]

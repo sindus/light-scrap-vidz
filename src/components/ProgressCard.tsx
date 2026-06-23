@@ -1,5 +1,3 @@
-import { motion } from 'framer-motion';
-import { CheckCircle, AlertCircle, XCircle, Loader } from 'lucide-react';
 import type { DownloadProgress, DownloadStatus } from '@/types';
 
 interface ProgressCardProps {
@@ -8,90 +6,75 @@ interface ProgressCardProps {
   error: string | null;
 }
 
-export function ProgressCard({ status, progress, error }: ProgressCardProps) {
-  if (status === 'idle' || status === 'ready' || status === 'fetching') return null;
+export function ProgressCard({ status, progress }: ProgressCardProps) {
+  if (status !== 'downloading') return null;
 
   const percent = progress?.percent ?? 0;
+  const speed = progress?.speed && progress.speed !== 'Unknown B/s' ? progress.speed : null;
+  const eta = progress?.eta && progress.eta !== 'Unknown' ? progress.eta : null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass p-4 space-y-3"
-      role="status"
-      aria-live="polite"
-    >
-      {status === 'downloading' && (
-        <>
-          {progress?.current_item != null && progress.total_items != null && (
-            <div className="flex items-center gap-2 text-xs text-violet-400 font-medium">
-              <span>Video {progress.current_item} / {progress.total_items}</span>
-            </div>
-          )}
-          <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-2 text-slate-300">
-              <Loader className="w-3.5 h-3.5 animate-spin text-violet-400" />
-              {progress?.filename ? (
-                <span className="truncate max-w-[260px] text-slate-400 text-xs">
-                  {progress.filename}
-                </span>
-              ) : (
-                'Starting download…'
-              )}
+    <div style={{ width: '100%', maxWidth: 460, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Percent + speed/eta row */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline' }}>
+          <span
+            style={{
+              fontSize: '52px',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              color: '#F1EDE6',
+              letterSpacing: '-0.03em',
+              lineHeight: 1,
+            }}
+          >
+            {percent.toFixed(0)}
+          </span>
+          <span style={{ fontSize: '22px', fontWeight: 600, color: '#6F6960', marginLeft: 2 }}>%</span>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+          {speed && (
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#C9F25E', fontFamily: "'JetBrains Mono', monospace" }}>
+              {speed}
             </span>
-            <span className="font-mono text-violet-300 font-medium tabular-nums">
-              {percent.toFixed(1)}%
-            </span>
-          </div>
-
-          <div className="relative h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-            <motion.div
-              className="absolute inset-y-0 left-0 rounded-full"
-              style={{
-                background: 'linear-gradient(90deg, #7c3aed 0%, #a78bfa 50%, #60a5fa 100%)',
-                boxShadow: '0 0 12px rgba(167,139,250,0.6)',
-              }}
-              animate={{ width: `${percent}%` }}
-              transition={{ duration: 0.4, ease: 'easeOut' }}
-              aria-valuenow={percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            />
-          </div>
-
-          {progress && (
-            <div className="flex items-center gap-4 text-xs text-slate-500 tabular-nums">
-              {progress.speed && progress.speed !== 'Unknown B/s' && (
-                <span>{progress.speed}</span>
-              )}
-              {progress.eta && progress.eta !== 'Unknown' && (
-                <span>ETA {progress.eta}</span>
-              )}
-            </div>
           )}
-        </>
-      )}
-
-      {status === 'complete' && (
-        <div className="flex items-center gap-2 text-emerald-400">
-          <CheckCircle className="w-4 h-4 shrink-0" />
-          <span className="text-sm font-medium">Download complete</span>
+          {eta && (
+            <span style={{ fontSize: '11.5px', color: '#6F6960', fontFamily: "'JetBrains Mono', monospace" }}>
+              ETA {eta}
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
-      {status === 'error' && (
-        <div className="flex items-start gap-2 text-red-400">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="text-sm">{error ?? 'An error occurred'}</span>
-        </div>
-      )}
+      {/* Progress bar */}
+      <div style={{ height: 10, borderRadius: 6, background: '#26241F', overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${percent}%`,
+            borderRadius: 6,
+            background: 'linear-gradient(90deg, rgba(201,242,94,0.8), #C9F25E)',
+            boxShadow: '0 0 18px rgba(201,242,94,0.32)',
+            transition: 'width 0.25s linear',
+          }}
+        />
+      </div>
 
-      {status === 'cancelled' && (
-        <div className="flex items-center gap-2 text-slate-500">
-          <XCircle className="w-4 h-4 shrink-0" />
-          <span className="text-sm">Download cancelled</span>
-        </div>
+      {/* Filename */}
+      {progress?.filename && (
+        <span
+          style={{
+            fontSize: '11.5px',
+            fontFamily: "'JetBrains Mono', monospace",
+            color: '#6F6960',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {progress.filename}
+        </span>
       )}
-    </motion.div>
+    </div>
   );
 }

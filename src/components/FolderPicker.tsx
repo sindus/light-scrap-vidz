@@ -1,8 +1,5 @@
 import { useCallback } from 'react';
-import { FolderOpen } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 
 interface FolderPickerProps {
   value: string;
@@ -19,29 +16,46 @@ export function FolderPicker({ value, onChange, disabled }: FolderPickerProps) {
   }, [onChange]);
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-sm text-slate-400 shrink-0">
-        <FolderOpen className="inline w-3.5 h-3.5 mr-1.5 text-violet-400" />
-        Save to
-      </span>
-      <div className="flex flex-1 gap-2">
-        <Input
-          value={value}
-          readOnly
-          placeholder="Choose output folder…"
-          className="flex-1 cursor-default"
-          aria-label="Output folder"
-        />
-        <Button
-          variant="outline"
-          onClick={handlePick}
-          disabled={disabled}
-          className="shrink-0"
-          aria-label="Browse folders"
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ fontSize: '13px', fontWeight: 600, color: '#C2BCB2', flexShrink: 0 }}>Save to</span>
+      <button
+        onClick={handlePick}
+        disabled={disabled}
+        aria-label="Choose output folder"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          minWidth: 0,
+          maxWidth: '70%',
+          padding: '6px 11px',
+          background: '#211F1B',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderRadius: 8,
+          cursor: disabled ? 'default' : 'pointer',
+          color: value ? '#D6D1C8' : '#6F6960',
+          transition: 'all .15s',
+        }}
+        onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLButtonElement).style.color = '#C9F25E'; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = value ? '#D6D1C8' : '#6F6960'; }}
+      >
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" />
+        </svg>
+        <span
+          style={{
+            fontSize: '12.5px',
+            fontFamily: "'JetBrains Mono', monospace",
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            direction: 'rtl',
+            textAlign: 'left',
+          }}
         >
-          Browse
-        </Button>
-      </div>
+          {value || 'Choose folder…'}
+        </span>
+      </button>
     </div>
   );
 }

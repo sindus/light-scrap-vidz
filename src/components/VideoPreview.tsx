@@ -1,6 +1,4 @@
-import { Clock, User } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { PLATFORM_META } from '@/lib/platform';
+import { PLATFORM_META, PLATFORM_TINT } from '@/lib/platform';
 import { formatDuration } from '@/lib/utils';
 import { getPlatform } from '@/lib/url-validator';
 import type { VideoInfo } from '@/types';
@@ -13,58 +11,115 @@ interface VideoPreviewProps {
 export function VideoPreview({ info, url }: VideoPreviewProps) {
   const platform = getPlatform(url);
   const meta = PLATFORM_META[platform];
+  const tint = PLATFORM_TINT[platform];
 
   return (
-    <div className="glass p-4 flex gap-4">
-      <div className="relative shrink-0 w-32 h-20 rounded-xl overflow-hidden bg-white/5">
+    <div
+      style={{
+        display: 'flex',
+        gap: 15,
+        padding: 15,
+        background: '#1A1916',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 14,
+      }}
+    >
+      {/* Thumbnail */}
+      <div
+        style={{
+          position: 'relative',
+          flexShrink: 0,
+          width: 124,
+          height: 78,
+          borderRadius: 9,
+          overflow: 'hidden',
+        }}
+      >
         {info.thumbnail ? (
           <img
             src={info.thumbnail}
             alt={info.title}
-            className="w-full h-full object-cover"
             loading="lazy"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-600">
-            <span className="text-2xl">🎬</span>
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              background: 'repeating-linear-gradient(135deg, #211F1A 0 7px, #1A1815 7px 14px)',
+              position: 'relative',
+            }}
+          >
+            <div style={{ position: 'absolute', inset: 0, background: tint, opacity: 0.12 }} />
           </div>
         )}
         {info.duration > 0 && (
-          <span className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[10px] font-medium px-1.5 py-0.5 rounded-md backdrop-blur-sm">
+          <span
+            style={{
+              position: 'absolute',
+              bottom: 5,
+              right: 5,
+              background: 'rgba(0,0,0,0.72)',
+              color: '#F1EDE6',
+              fontSize: '9.5px',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 500,
+              padding: '1px 5px',
+              borderRadius: 5,
+            }}
+          >
             {formatDuration(info.duration)}
           </span>
         )}
       </div>
 
-      <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-        <div className="space-y-1.5">
-          <Badge
+      {/* Right column */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <span
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '2px 8px',
+              borderRadius: 999,
+              fontSize: '10px',
+              fontWeight: 700,
               color: meta.color,
-              backgroundColor: meta.bgColor,
-              borderColor: meta.borderColor,
+              background: meta.bgColor,
+              border: `1px solid ${meta.borderColor}`,
             }}
           >
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: tint }} />
             {meta.label}
-          </Badge>
-          <h3 className="text-sm font-medium text-slate-100 line-clamp-2 leading-snug">
-            {info.title}
-          </h3>
+          </span>
+          <span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#857F75' }}>
+            Single video
+          </span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-500">
-          {info.uploader && (
-            <span className="flex items-center gap-1">
-              <User className="w-3 h-3" />
-              {info.uploader}
-            </span>
-          )}
-          {info.duration > 0 && (
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {formatDuration(info.duration)}
-            </span>
-          )}
+        <h3
+          style={{
+            margin: 0,
+            fontSize: '15.5px',
+            fontWeight: 700,
+            color: '#F1EDE6',
+            letterSpacing: '-0.01em',
+            lineHeight: 1.25,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          {info.title}
+        </h3>
+
+        <div style={{ fontSize: '12.5px', fontFamily: "'JetBrains Mono', monospace", color: '#857F75' }}>
+          {[info.uploader, info.duration > 0 ? formatDuration(info.duration) : null]
+            .filter(Boolean)
+            .join(' · ')}
         </div>
       </div>
     </div>

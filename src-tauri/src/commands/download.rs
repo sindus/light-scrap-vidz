@@ -154,10 +154,8 @@ pub async fn start_download(
         };
 
         if !was_cancelled {
-            let filepath = if is_playlist {
+            let filepath = if is_playlist || last_filename.is_empty() {
                 output_dir_clone.clone()
-            } else if last_filename.is_empty() {
-                stderr_last.to_string()
             } else {
                 last_filename.clone()
             };
