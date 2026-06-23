@@ -138,10 +138,7 @@ pub async fn start_download(
 
         // Drain stderr to prevent pipe blocking
         let mut err_reader = BufReader::new(stderr).lines();
-        let mut stderr_last = String::new();
-        while let Ok(Some(line)) = err_reader.next_line().await {
-            stderr_last = line;
-        }
+        while err_reader.next_line().await.ok().flatten().is_some() {}
 
         let was_cancelled = {
             let mut reg = registry.lock().await;
