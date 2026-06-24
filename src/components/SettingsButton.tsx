@@ -4,7 +4,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { BrowserCookieSelector } from '@/components/BrowserCookieSelector';
-import { getInstallKind, downloadDebUpdate, installDebUpdate } from '@/lib/tauri-commands';
+import { getInstallKind, downloadDebUpdate, installDebUpdate, updateYtDlp } from '@/lib/tauri-commands';
 import type { CookiesBrowser } from '@/types';
 
 interface SettingsSheetProps {
@@ -52,6 +52,7 @@ export function SettingsButton({
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
+  const [ytdlpStatus, setYtdlpStatus] = useState<'idle' | 'updating' | 'updated' | 'failed'>('idle');
 
   useEffect(() => {
     if (isOpen && !version) {
@@ -64,7 +65,13 @@ export function SettingsButton({
     setUpdateState('checking');
     setUpdateError(null);
     setUpdateVersion(null);
+    setYtdlpStatus('updating');
     try {
+      // Update yt-dlp silently while checking for app update
+      await updateYtDlp()
+        .then(() => setYtdlpStatus('updated'))
+        .catch(() => setYtdlpStatus('failed'));
+
       const update = await check();
       if (!update?.available) {
         setUpdateState('up-to-date');
@@ -314,6 +321,26 @@ export function SettingsButton({
             )}
             <span style={{ position: 'relative' }}>{updateLabel()}</span>
           </button>
+
+          {/* yt-dlp status */}
+          {ytdlpStatus !== 'idle' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+              {ytdlpStatus === 'updating' && (
+                <span className="lsv-spin" style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(201,242,94,0.3)', borderTopColor: '#C9F25E', display: 'inline-block', flexShrink: 0 }} />
+              )}
+              {ytdlpStatus === 'updated' && (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#C9F25E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              )}
+              {ytdlpStatus === 'failed' && (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#FF8A8A" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+              )}
+              <span style={{ fontSize: '11px', color: ytdlpStatus === 'failed' ? '#FF8A8A' : '#6F6960' }}>
+                {ytdlpStatus === 'updating' && 'Updating yt-dlp…'}
+                {ytdlpStatus === 'updated' && 'yt-dlp up to date'}
+                {ytdlpStatus === 'failed' && 'yt-dlp update failed'}
+              </span>
+            </div>
+          )}
 
           {/* Error message */}
           {updateState === 'error' && updateError && (
