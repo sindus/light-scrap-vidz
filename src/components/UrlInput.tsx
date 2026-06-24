@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { readText } from '@tauri-apps/plugin-clipboard-manager';
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
@@ -30,8 +31,8 @@ export function UrlInput({ onSubmit, isLoading, disabled, showTryChips }: UrlInp
 
   const handlePaste = useCallback(async () => {
     try {
-      const text = await navigator.clipboard.readText();
-      setValue(text.trim());
+      const text = await readText();
+      if (text) setValue(text.trim());
     } catch {
       // clipboard access denied
     }

@@ -5,6 +5,7 @@ use commands::detect_browsers::detect_installed_browsers;
 use commands::download::{cancel_download, start_download, DownloadRegistry};
 use commands::fetch_info::fetch_video_info;
 use commands::fetch_playlist_info::fetch_playlist_info;
+use commands::open_file::open_file;
 use commands::open_folder::open_folder;
 use commands::update_ytdlp::update_ytdlp;
 use std::collections::HashMap;
@@ -20,12 +21,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(download_registry)
         .invoke_handler(tauri::generate_handler![
             fetch_video_info,
             fetch_playlist_info,
             start_download,
             cancel_download,
+            open_file,
             open_folder,
             update_ytdlp,
             detect_installed_browsers,
