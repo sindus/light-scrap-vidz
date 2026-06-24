@@ -57,12 +57,21 @@ jobs:
       - name: Build Tauri app
         run: npm run tauri -- build --target ${{ matrix.target }}
 
-      - name: Package macOS app for updater
-        if: runner.os == 'macOS'
+      - name: Package app for updater
         run: |
-          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
-          tar czf "${BUNDLE}/light-scrap-vidZ_aarch64.app.tar.gz" \
-            -C "${BUNDLE}" light-scrap-vidZ.app
+          TARGET="${{ matrix.target }}"
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            BUNDLE="src-tauri/target/${TARGET}/release/bundle/macos"
+            tar czf "${BUNDLE}/light-scrap-vidZ_aarch64.app.tar.gz" \
+              -C "${BUNDLE}" light-scrap-vidZ.app
+          else
+            BUNDLE="src-tauri/target/${TARGET}/release/bundle/appimage"
+            APPIMAGE="light-scrap-vidZ_${VERSION}_amd64.AppImage"
+            tar czf "${BUNDLE}/${APPIMAGE}.tar.gz" \
+              -C "${BUNDLE}" "${APPIMAGE}"
+          fi
 
       - name: Sign updater bundles
         env:
@@ -87,7 +96,8 @@ jobs:
           IS_PRE="${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}"
           EXTRA=""
           [ "$IS_PRE" = "true" ] && EXTRA="--prerelease"
-          gh release create "$TAG" --title "$TAG" --notes "Release $TAG" $EXTRA 2>/dev/null || true
+          gh release create "$TAG" --title "$TAG" --notes "Release $TAG" $EXTRA \
+            --repo sindus/light-scrap-vidz 2>/dev/null || true
 
       - name: Upload release assets
         env:
@@ -101,7 +111,7 @@ jobs:
                -o -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.AppImage.tar.gz" \) \
             ! -name "*vid-z*" | while read f; do
             echo "Uploading: $(basename "$f")"
-            gh release upload "$TAG" "$f" --clobber
+            gh release upload "$TAG" "$f" --clobber --repo sindus/light-scrap-vidz
           done
 
       - name: Upload signature artifact
@@ -162,4 +172,4 @@ jobs:
           " "$VERSION" "$DATE" "$LINUX_SIG" "$BASE" "$DARWIN_SIG"
 
           echo "Uploading latest.json..."
-          gh release upload "$TAG" latest.json --clobber
+          gh release upload "$TAG" latest.json --clobber --repo sindus/light-scrap-vidz
