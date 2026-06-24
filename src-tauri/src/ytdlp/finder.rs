@@ -43,7 +43,7 @@ impl YtDlpBinary {
         Self::find_system()
     }
 
-    /// Dev/test fallback — no app handle required.
+    #[allow(dead_code)]
     pub fn find() -> Result<Self, String> {
         if let Ok(p) = std::env::var("YTDLP_PATH") {
             let path = PathBuf::from(&p);
