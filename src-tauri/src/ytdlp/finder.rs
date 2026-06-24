@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 
 const SYSTEM_PATHS: &[&str] = &[
     "/usr/local/bin/yt-dlp",
@@ -7,21 +8,14 @@ const SYSTEM_PATHS: &[&str] = &[
     "/opt/local/bin/yt-dlp",
 ];
 
-/// Returns `~/.local/bin/yt-dlp` — pip --user install location.
-/// Preferred over system paths because the pip version supports curl-cffi (required for TikTok).
-fn pip_user_bin() -> Option<PathBuf> {
-    let home = std::env::var("HOME").ok()?;
-    let p = PathBuf::from(home).join(".local").join("bin").join("yt-dlp");
-    p.is_file().then_some(p)
-}
-
 pub struct YtDlpBinary {
     path: PathBuf,
 }
 
 impl YtDlpBinary {
-    pub fn find() -> Result<Self, String> {
-        // 1. Explicit env var override
+    /// Primary resolver: bundled sidecar > user-updated binary > system.
+    pub fn find_with_app(app: &tauri::AppHandle) -> Result<Self, String> {
+        // 1. Env var override (dev/CI)
         if let Ok(p) = std::env::var("YTDLP_PATH") {
             let path = PathBuf::from(&p);
             if path.is_file() {
@@ -29,12 +23,38 @@ impl YtDlpBinary {
             }
         }
 
-        // 2. pip --user install (~/.local/bin) — supports curl-cffi for TikTok/Dailymotion
-        if let Some(path) = pip_user_bin() {
-            return Ok(Self { path });
+        // 2. User-updated binary in writable app data dir ("Update yt-dlp" saves here)
+        if let Ok(data_dir) = app.path().app_data_dir() {
+            let p = data_dir.join("yt-dlp");
+            if p.is_file() {
+                return Ok(Self { path: p });
+            }
         }
 
-        // 3. Search $PATH (may be the apt/standalone binary without curl-cffi support)
+        // 3. Bundled sidecar in resource dir (ships with the app)
+        if let Ok(res_dir) = app.path().resource_dir() {
+            let p = res_dir.join("yt-dlp");
+            if p.is_file() {
+                return Ok(Self { path: p });
+            }
+        }
+
+        // 4. System fallback (dev builds without bundled binary)
+        Self::find_system()
+    }
+
+    /// Dev/test fallback — no app handle required.
+    pub fn find() -> Result<Self, String> {
+        if let Ok(p) = std::env::var("YTDLP_PATH") {
+            let path = PathBuf::from(&p);
+            if path.is_file() {
+                return Ok(Self { path });
+            }
+        }
+        Self::find_system()
+    }
+
+    fn find_system() -> Result<Self, String> {
         if let Ok(path_var) = std::env::var("PATH") {
             for dir in path_var.split(':') {
                 let candidate = PathBuf::from(dir).join("yt-dlp");
@@ -43,16 +63,13 @@ impl YtDlpBinary {
                 }
             }
         }
-
-        // 4. Hardcoded system fallbacks
         for p in SYSTEM_PATHS {
             let candidate = Path::new(p);
             if candidate.is_file() {
                 return Ok(Self { path: candidate.to_path_buf() });
             }
         }
-
-        Err("yt-dlp not found. Click \"Update yt-dlp\" in Settings to install it.".to_string())
+        Err("yt-dlp not found. Please restart the app to trigger automatic setup.".to_string())
     }
 
     pub fn path(&self) -> &Path {

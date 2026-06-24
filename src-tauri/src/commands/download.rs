@@ -47,7 +47,7 @@ pub async fn start_download(
     cookies_browser: Option<String>,
     audio_only: bool,
 ) -> Result<(), String> {
-    let binary = YtDlpBinary::find()?;
+    let binary = YtDlpBinary::find_with_app(&app)?;
     let q = Quality::from_str(&quality);
     let binary_path = binary.path().to_path_buf();
     let output_dir_clone = output_dir.clone();

@@ -28,10 +28,11 @@ pub struct PlaylistInfoResponse {
 
 #[tauri::command]
 pub async fn fetch_playlist_info(
+    app: tauri::AppHandle,
     url: String,
     cookies_browser: Option<String>,
 ) -> Result<PlaylistInfoResponse, String> {
-    let binary = YtDlpBinary::find()?;
+    let binary = YtDlpBinary::find_with_app(&app)?;
 
     let cmd = PlaylistInfoCommand {
         binary: binary.path().to_path_buf(),
