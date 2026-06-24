@@ -20,11 +20,11 @@ const PATTERNS: Array<{ re: RegExp; msg: string }> = [
   // --- Impersonation / curl-cffi ---
   {
     re: /attempting impersonation.*no impersonate target|no impersonate target.*available/i,
-    msg: 'Missing dependency: run `pip install curl-cffi` in a terminal, then retry.',
+    msg: 'Missing dependency (curl-cffi) — click "Update yt-dlp" in Settings to install it automatically.',
   },
   {
     re: /impersonate.*firefox|impersonate.*chrome|none of these impersonate targets/i,
-    msg: 'Missing dependency: run `pip install curl-cffi` in a terminal, then retry.',
+    msg: 'Missing dependency (curl-cffi) — click "Update yt-dlp" in Settings to install it automatically.',
   },
 
   // --- IP / access blocks ---

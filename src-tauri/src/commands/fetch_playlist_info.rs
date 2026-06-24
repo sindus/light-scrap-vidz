@@ -36,7 +36,7 @@ pub async fn fetch_playlist_info(
     let cmd = PlaylistInfoCommand {
         binary: binary.path().to_path_buf(),
         url,
-        peek: 5,
+        peek: 20,
         cookies_browser,
     }
     .build();

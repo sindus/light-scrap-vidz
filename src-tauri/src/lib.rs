@@ -1,10 +1,12 @@
 mod commands;
 mod ytdlp;
 
+use commands::deb_update::{download_deb_update, install_deb_update};
 use commands::detect_browsers::detect_installed_browsers;
 use commands::download::{cancel_download, start_download, DownloadRegistry};
 use commands::fetch_info::fetch_video_info;
 use commands::fetch_playlist_info::fetch_playlist_info;
+use commands::install_kind::install_kind;
 use commands::open_file::open_file;
 use commands::open_folder::open_folder;
 use commands::update_ytdlp::update_ytdlp;
@@ -32,6 +34,9 @@ pub fn run() {
             open_folder,
             update_ytdlp,
             detect_installed_browsers,
+            install_kind,
+            download_deb_update,
+            install_deb_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

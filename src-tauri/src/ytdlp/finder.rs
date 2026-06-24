@@ -1,12 +1,19 @@
 use std::path::{Path, PathBuf};
 
-const FALLBACK_PATHS: &[&str] = &[
-    "/home/sikander/.local/bin/yt-dlp",
+const SYSTEM_PATHS: &[&str] = &[
     "/usr/local/bin/yt-dlp",
     "/usr/bin/yt-dlp",
     "/opt/homebrew/bin/yt-dlp",
     "/opt/local/bin/yt-dlp",
 ];
+
+/// Returns `~/.local/bin/yt-dlp` — pip --user install location.
+/// Preferred over system paths because the pip version supports curl-cffi (required for TikTok).
+fn pip_user_bin() -> Option<PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    let p = PathBuf::from(home).join(".local").join("bin").join("yt-dlp");
+    p.is_file().then_some(p)
+}
 
 pub struct YtDlpBinary {
     path: PathBuf,
@@ -22,7 +29,12 @@ impl YtDlpBinary {
             }
         }
 
-        // 2. Search $PATH
+        // 2. pip --user install (~/.local/bin) — supports curl-cffi for TikTok/Dailymotion
+        if let Some(path) = pip_user_bin() {
+            return Ok(Self { path });
+        }
+
+        // 3. Search $PATH (may be the apt/standalone binary without curl-cffi support)
         if let Ok(path_var) = std::env::var("PATH") {
             for dir in path_var.split(':') {
                 let candidate = PathBuf::from(dir).join("yt-dlp");
@@ -32,15 +44,15 @@ impl YtDlpBinary {
             }
         }
 
-        // 3. Hardcoded fallbacks
-        for p in FALLBACK_PATHS {
+        // 4. Hardcoded system fallbacks
+        for p in SYSTEM_PATHS {
             let candidate = Path::new(p);
             if candidate.is_file() {
                 return Ok(Self { path: candidate.to_path_buf() });
             }
         }
 
-        Err("yt-dlp not found. Please install it: https://github.com/yt-dlp/yt-dlp".to_string())
+        Err("yt-dlp not found. Click \"Update yt-dlp\" in Settings to install it.".to_string())
     }
 
     pub fn path(&self) -> &Path {
@@ -55,9 +67,7 @@ mod tests {
     #[test]
     fn test_find_via_env_var_invalid_path() {
         std::env::set_var("YTDLP_PATH", "/nonexistent/path/yt-dlp");
-        // Should fall through to PATH/fallback search, not return the invalid path
         let result = YtDlpBinary::find();
-        // We only assert it doesn't return the invalid path
         if let Ok(binary) = &result {
             assert_ne!(binary.path().to_str().unwrap(), "/nonexistent/path/yt-dlp");
         }
@@ -65,7 +75,6 @@ mod tests {
 
     #[test]
     fn test_find_via_env_var_valid_path() {
-        // Use an existing binary as a proxy
         let existing = std::process::Command::new("which")
             .arg("yt-dlp")
             .output()

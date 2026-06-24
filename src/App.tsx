@@ -39,6 +39,7 @@ export default function App() {
   const [detectedBrowsers, setDetectedBrowsers] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tab, setTab] = useState<'recent' | 'queue'>('recent');
+  const [selectedPlaylistUrls, setSelectedPlaylistUrls] = useState<string[]>([]);
 
   // Persist output folder
   const handleSetOutputDir = useCallback((dir: string) => {
@@ -104,6 +105,7 @@ export default function App() {
       resetDownload();
       resetInfo();
       resetPlInfo();
+      setSelectedPlaylistUrls([]);
       handleUrlChange(submittedUrl);
 
       if (isPlaylistUrl(submittedUrl)) {
@@ -119,12 +121,24 @@ export default function App() {
 
   const handleDownload = useCallback(async () => {
     if (!outputDir) return;
+    if (urlKind === 'playlist' && selectedPlaylistUrls.length > 0) {
+      addToQueue(selectedPlaylistUrls.map((u) => ({
+        url: u,
+        outputDir,
+        quality,
+        audioOnly,
+        playlistEnd: null,
+        cookiesBrowser,
+      })));
+      setTab('queue');
+      return;
+    }
     if (urlKind === 'playlist' && plInfo) {
       await download(url, outputDir, quality, null, plInfo, playlistEnd, cookiesBrowser, audioOnly);
     } else if (info) {
       await download(url, outputDir, quality, info, null, null, cookiesBrowser, audioOnly);
     }
-  }, [info, plInfo, outputDir, url, quality, urlKind, playlistEnd, cookiesBrowser, audioOnly, download]);
+  }, [info, plInfo, outputDir, url, quality, urlKind, playlistEnd, cookiesBrowser, audioOnly, download, selectedPlaylistUrls, addToQueue]);
 
   const handleAddToQueue = useCallback(
     (urls: string[]) => {
@@ -150,6 +164,7 @@ export default function App() {
     resetInfo();
     resetPlInfo();
     resetDownload();
+    setSelectedPlaylistUrls([]);
   }, [resetInfo, resetPlInfo, resetDownload]);
 
   // Switch to queue tab when queue becomes active
@@ -360,7 +375,15 @@ export default function App() {
 
               {/* Preview card */}
               {urlKind === 'single' && info && <VideoPreview info={info} url={url} />}
-              {urlKind === 'playlist' && plInfo && <PlaylistPreview info={plInfo} url={url} />}
+              {urlKind === 'playlist' && plInfo && (
+                <PlaylistPreview
+                  info={plInfo}
+                  url={url}
+                  selectedUrls={selectedPlaylistUrls}
+                  onSelectionChange={setSelectedPlaylistUrls}
+                  disabled={isBusy}
+                />
+              )}
 
               {/* Options card */}
               <div style={{ background: '#1A1916', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
@@ -386,7 +409,7 @@ export default function App() {
                     detectedBrowsers={detectedBrowsers}
                   />
                 </div>
-                {isPlaylist && (
+                {isPlaylist && selectedPlaylistUrls.length === 0 && (
                   <>
                     <div style={separatorStyle} />
                     <div style={optionRowStyle}>
@@ -402,6 +425,7 @@ export default function App() {
                 audioOnly={audioOnly}
                 isPlaylist={isPlaylist}
                 playlistCount={playlistCount}
+                selectedCount={selectedPlaylistUrls.length}
                 onDownload={handleDownload}
               />
             </motion.div>

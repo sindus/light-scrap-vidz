@@ -4,6 +4,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { BrowserCookieSelector } from '@/components/BrowserCookieSelector';
+import { getInstallKind, downloadDebUpdate, installDebUpdate } from '@/lib/tauri-commands';
 import type { CookiesBrowser } from '@/types';
 
 interface SettingsSheetProps {
@@ -46,6 +47,7 @@ export function SettingsButton({
 }: SettingsSheetProps) {
   const [notif, setNotif] = useState(true);
   const [version, setVersion] = useState('');
+  const [installKind, setInstallKind] = useState<'appimage' | 'deb' | null>(null);
   const [updateState, setUpdateState] = useState<UpdateState>('idle');
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -54,6 +56,7 @@ export function SettingsButton({
   useEffect(() => {
     if (isOpen && !version) {
       void getVersion().then(setVersion).catch(() => {});
+      void getInstallKind().then(setInstallKind).catch(() => setInstallKind('deb'));
     }
   }, [isOpen, version]);
 
@@ -68,9 +71,19 @@ export function SettingsButton({
         return;
       }
       setUpdateVersion(update.version);
-      setUpdateState('available');
 
-      // Start download immediately
+      // deb: download .deb then pkexec dpkg -i (shows system password dialog)
+      if (installKind !== 'appimage') {
+        setUpdateState('downloading');
+        setDownloadProgress(0);
+        await downloadDebUpdate(update.version);
+        setUpdateState('installing');
+        await installDebUpdate(update.version);
+        await relaunch();
+        return;
+      }
+
+      // AppImage: download and install in-place
       setUpdateState('downloading');
       setDownloadProgress(0);
       let downloaded = 0;
@@ -91,7 +104,7 @@ export function SettingsButton({
       setUpdateState('error');
       setUpdateError(e instanceof Error ? e.message : String(e));
     }
-  }, []);
+  }, [installKind]);
 
   const handlePickFolder = useCallback(async () => {
     const selected = await open({ directory: true, multiple: false });
@@ -106,7 +119,7 @@ export function SettingsButton({
       case 'downloading': return downloadProgress > 0 ? `Downloading ${downloadProgress}%` : 'Downloading…';
       case 'installing': return 'Installing…';
       case 'up-to-date': return 'Up to date ✓';
-      case 'error': return 'Retry update';
+      case 'error': return 'Retry';
       case 'available': return updateVersion ? `Update to v${updateVersion}` : 'Update available';
       default: return 'Check for updates';
     }
