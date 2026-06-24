@@ -1,6 +1,14 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+/// Platforms that require browser impersonation (curl-cffi).
+const IMPERSONATE_DOMAINS: &[&str] = &["tiktok.com", "dailymotion.com", "dai.ly"];
+
+fn needs_impersonation(url: &str) -> bool {
+    let lower = url.to_lowercase();
+    IMPERSONATE_DOMAINS.iter().any(|d| lower.contains(d))
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Quality {
     Best,
@@ -52,6 +60,9 @@ impl InfoCommand {
         if let Some(browser) = &self.cookies_browser {
             cmd.args(["--cookies-from-browser", browser]);
         }
+        if needs_impersonation(&self.url) {
+            cmd.args(["--impersonate", "chrome"]);
+        }
         cmd.args(["--dump-json", "--no-playlist", &self.url]);
         cmd
     }
@@ -71,6 +82,9 @@ impl DownloadCommand {
         let mut cmd = Command::new(&self.binary);
         if let Some(browser) = &self.cookies_browser {
             cmd.args(["--cookies-from-browser", browser]);
+        }
+        if needs_impersonation(&self.url) {
+            cmd.args(["--impersonate", "chrome"]);
         }
         if self.audio_only {
             cmd.args(["-x", "--audio-format", "mp3", "--audio-quality", "0"]);
@@ -106,6 +120,9 @@ impl PlaylistInfoCommand {
         if let Some(browser) = &self.cookies_browser {
             cmd.args(["--cookies-from-browser", browser]);
         }
+        if needs_impersonation(&self.url) {
+            cmd.args(["--impersonate", "chrome"]);
+        }
         cmd.args([
             "--flat-playlist",
             "--dump-single-json",
@@ -136,6 +153,9 @@ impl PlaylistDownloadCommand {
         let mut cmd = Command::new(&self.binary);
         if let Some(browser) = &self.cookies_browser {
             cmd.args(["--cookies-from-browser", browser]);
+        }
+        if needs_impersonation(&self.url) {
+            cmd.args(["--impersonate", "chrome"]);
         }
         if self.audio_only {
             cmd.args(["-x", "--audio-format", "mp3", "--audio-quality", "0"]);
