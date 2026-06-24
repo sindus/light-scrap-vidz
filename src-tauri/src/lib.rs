@@ -6,6 +6,7 @@ use commands::detect_browsers::detect_installed_browsers;
 use commands::download::{cancel_download, start_download, DownloadRegistry};
 use commands::fetch_info::fetch_video_info;
 use commands::fetch_playlist_info::fetch_playlist_info;
+use commands::fetch_thumbnail::fetch_thumbnail;
 use commands::install_kind::install_kind;
 use commands::open_file::open_file;
 use commands::open_folder::open_folder;
@@ -28,6 +29,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             fetch_video_info,
             fetch_playlist_info,
+            fetch_thumbnail,
             start_download,
             cancel_download,
             open_file,

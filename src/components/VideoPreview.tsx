@@ -1,6 +1,8 @@
+import { useState, useEffect } from 'react';
 import { PLATFORM_META, PLATFORM_TINT } from '@/lib/platform';
 import { formatDuration } from '@/lib/utils';
 import { getPlatform } from '@/lib/url-validator';
+import { fetchThumbnail } from '@/lib/tauri-commands';
 import type { VideoInfo } from '@/types';
 
 interface VideoPreviewProps {
@@ -12,6 +14,16 @@ export function VideoPreview({ info, url }: VideoPreviewProps) {
   const platform = getPlatform(url);
   const meta = PLATFORM_META[platform];
   const tint = PLATFORM_TINT[platform];
+  const [thumbSrc, setThumbSrc] = useState<string | null>(info.thumbnail ?? null);
+
+  useEffect(() => {
+    if (!info.thumbnail) return;
+    setThumbSrc(info.thumbnail);
+    // Proxy via Rust to bypass CORS/Referer restrictions on Instagram, TikTok, etc.
+    void fetchThumbnail(info.thumbnail)
+      .then((data) => setThumbSrc(data))
+      .catch(() => { /* keep original URL */ });
+  }, [info.thumbnail]);
 
   return (
     <div
@@ -35,12 +47,12 @@ export function VideoPreview({ info, url }: VideoPreviewProps) {
           overflow: 'hidden',
         }}
       >
-        {info.thumbnail ? (
+        {thumbSrc ? (
           <img
-            src={info.thumbnail}
+            src={thumbSrc}
             alt={info.title}
-            loading="lazy"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={() => setThumbSrc(null)}
           />
         ) : (
           <div

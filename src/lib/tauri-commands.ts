@@ -38,6 +38,9 @@ export const openFile = (path: string): Promise<void> => invoke('open_file', { p
 
 export const updateYtDlp = (): Promise<string> => invoke('update_ytdlp');
 
+export const fetchThumbnail = (url: string): Promise<string> =>
+  invoke('fetch_thumbnail', { url });
+
 export const detectInstalledBrowsers = (): Promise<string[]> =>
   invoke('detect_installed_browsers');
 
