@@ -64,11 +64,11 @@ jobs:
           VERSION="${TAG#v}"
           if [ "${{ runner.os }}" = "macOS" ]; then
             BUNDLE="src-tauri/target/${TARGET}/release/bundle/macos"
-            tar czf "${BUNDLE}/light-scrap-vidZ_aarch64.app.tar.gz" \
-              -C "${BUNDLE}" light-scrap-vidZ.app
+            tar czf "${BUNDLE}/light-scrap-vidz_aarch64.app.tar.gz" \
+              -C "${BUNDLE}" light-scrap-vidz.app
           else
             BUNDLE="src-tauri/target/${TARGET}/release/bundle/appimage"
-            APPIMAGE="light-scrap-vidZ_${VERSION}_amd64.AppImage"
+            APPIMAGE="light-scrap-vidz_${VERSION}_amd64.AppImage"
             tar czf "${BUNDLE}/${APPIMAGE}.tar.gz" \
               -C "${BUNDLE}" "${APPIMAGE}"
           fi
@@ -158,11 +158,11 @@ jobs:
             'platforms': {
               'linux-x86_64': {
                 'signature': sys.argv[3].strip(),
-                'url': sys.argv[4] + '/light-scrap-vidZ_' + sys.argv[1] + '_amd64.AppImage.tar.gz'
+                'url': sys.argv[4] + '/light-scrap-vidz_' + sys.argv[1] + '_amd64.AppImage.tar.gz'
               },
               'darwin-aarch64': {
                 'signature': sys.argv[5].strip(),
-                'url': sys.argv[4] + '/light-scrap-vidZ_aarch64.app.tar.gz'
+                'url': sys.argv[4] + '/light-scrap-vidz_aarch64.app.tar.gz'
               }
             }
           }
