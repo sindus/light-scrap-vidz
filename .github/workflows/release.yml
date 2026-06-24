@@ -54,14 +54,112 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - uses: tauri-apps/tauri-action@v0
+      - name: Build Tauri app
+        run: npm run tauri -- build --target ${{ matrix.target }}
+
+      - name: Package macOS app for updater
+        if: runner.os == 'macOS'
+        run: |
+          BUNDLE="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          tar czf "${BUNDLE}/light-scrap-vidZ_aarch64.app.tar.gz" \
+            -C "${BUNDLE}" light-scrap-vidZ.app
+
+      - name: Sign updater bundles
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          TARGET="${{ matrix.target }}"
+          BUNDLE="src-tauri/target/${TARGET}/release/bundle"
+          find "${BUNDLE}" \( -name "*.AppImage.tar.gz" -o -name "*_aarch64.app.tar.gz" \) \
+            ! -name "*vid-z*" | while read bundle; do
+            echo "Signing: $bundle"
+            npm run tauri -- signer sign "$bundle"
+            SIG="${bundle}.sig"
+            echo "Sig size: $(wc -c < "$SIG") bytes"
+          done
+
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          IS_PRE="${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}"
+          EXTRA=""
+          [ "$IS_PRE" = "true" ] && EXTRA="--prerelease"
+          gh release create "$TAG" --title "$TAG" --notes "Release $TAG" $EXTRA 2>/dev/null || true
+
+      - name: Upload release assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          TARGET="${{ matrix.target }}"
+          BUNDLE="src-tauri/target/${TARGET}/release/bundle"
+          find "${BUNDLE}" \
+            \( -name "*.deb" -o -name "*.AppImage" -o -name "*.rpm" \
+               -o -name "*.dmg" -o -name "*.app.tar.gz" -o -name "*.AppImage.tar.gz" \) \
+            ! -name "*vid-z*" | while read f; do
+            echo "Uploading: $(basename "$f")"
+            gh release upload "$TAG" "$f" --clobber
+          done
+
+      - name: Upload signature artifact
+        uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: ${{ github.ref_name }}
-          releaseDraft: false
-          prerelease: ${{ contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
-          args: --target ${{ matrix.target }}
+          name: sig-${{ matrix.target }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage.tar.gz.sig
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*_aarch64.app.tar.gz.sig
+          retention-days: 1
+
+  latest-json:
+    name: Generate latest.json
+    needs: publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download signatures
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sig-*
+          merge-multiple: true
+          path: sigs
+
+      - name: Generate and upload latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BASE="https://github.com/sindus/light-scrap-vidz/releases/download/${TAG}"
+
+          find sigs -name "*.sig" | sort
+          LINUX_SIG=$(find sigs -name "*.AppImage.tar.gz.sig" ! -name "*vid-z*" | head -1 | xargs cat 2>/dev/null || echo "")
+          DARWIN_SIG=$(find sigs -name "*_aarch64.app.tar.gz.sig" | head -1 | xargs cat 2>/dev/null || echo "")
+
+          python3 -c "
+          import json, sys
+          data = {
+            'version': sys.argv[1],
+            'notes': '',
+            'pub_date': sys.argv[2],
+            'platforms': {
+              'linux-x86_64': {
+                'signature': sys.argv[3].strip(),
+                'url': sys.argv[4] + '/light-scrap-vidZ_' + sys.argv[1] + '_amd64.AppImage.tar.gz'
+              },
+              'darwin-aarch64': {
+                'signature': sys.argv[5].strip(),
+                'url': sys.argv[4] + '/light-scrap-vidZ_aarch64.app.tar.gz'
+              }
+            }
+          }
+          print(json.dumps(data, indent=2))
+          with open('latest.json', 'w') as f:
+            json.dump(data, f, indent=2)
+          " "$VERSION" "$DATE" "$LINUX_SIG" "$BASE" "$DARWIN_SIG"
+
+          echo "Uploading latest.json..."
+          gh release upload "$TAG" latest.json --clobber
