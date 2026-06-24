@@ -31,9 +31,10 @@ impl YtDlpBinary {
             }
         }
 
-        // 3. Bundled sidecar in resource dir (ships with the app)
+        // 3. Bundled sidecar in resource dir (ships with the app, named yt-dlp-lsv to avoid
+        //    conflicting with the system yt-dlp deb package at /usr/bin/yt-dlp)
         if let Ok(res_dir) = app.path().resource_dir() {
-            let p = res_dir.join("yt-dlp");
+            let p = res_dir.join("yt-dlp-lsv");
             if p.is_file() {
                 return Ok(Self { path: p });
             }
